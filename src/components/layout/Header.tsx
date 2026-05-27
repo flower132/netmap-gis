@@ -37,16 +37,22 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-2">
-        {/* 预留：图层管理按钮 */}
+        {/* 图层管理按钮：滚动到图层面板 */}
         <button
           className="p-2 text-gis-400 hover:text-gis-200 hover:bg-gis-800 rounded-md transition-colors"
-          title="图层管理（预留）"
-          onClick={() => alert('多图层管理系统预留中')}
+          title="图层管理"
+          onClick={() => {
+            const sidebar = document.querySelector('aside');
+            if (sidebar) {
+              sidebar.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+            toggleMobileDrawer(true);
+          }}
         >
           <Layers className="w-4 h-4" />
         </button>
         <div className="w-px h-6 bg-gis-700 mx-1" />
-        <span className="text-xs text-gis-500 font-mono">v2.0</span>
+        <span className="text-xs text-gis-500 font-mono">v2.1</span>
       </div>
     </header>
   );

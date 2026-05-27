@@ -1,28 +1,28 @@
 import { useMemo } from 'react';
 import { useMap } from 'react-leaflet';
-import { SectorMarker } from './SectorMarker';
+import { SectorPolygon } from './SectorPolygon';
 import { useAppStore } from '@/store/useAppStore';
 import type { Site } from '@/types';
 
-interface SiteMarkersProps {
+interface SitePolygonsProps {
   sites: Site[];
-  maxZoom?: number;
+  minZoom?: number;
 }
 
 /**
- * 站点扇区标记集合组件
- * 渲染所有 Site 的扇区 Marker，支持高亮状态传递
- * 仅在 zoom < maxZoom 时渲染，避免与高 zoom 的 polygon 重叠
+ * 站点扇区 Polygon 集合
+ * 仅在地图缩放级别 >= minZoom 时渲染，优化性能
+ * 根据 visible 图层过滤站点（由传入的 sites 控制）
  */
-export function SiteMarkers({ sites, maxZoom = 16 }: SiteMarkersProps) {
+export function SitePolygons({ sites, minZoom = 16 }: SitePolygonsProps) {
   const map = useMap();
   const zoom = map.getZoom();
   const highlightedSiteId = useAppStore((state) => state.highlightedSiteId);
 
-  const shouldRender = zoom < maxZoom;
+  const shouldRender = zoom >= minZoom;
 
-  // 预计算所有扇区 marker 配置，避免重复计算
-  const markers = useMemo(() => {
+  // 预计算所有扇区 polygon 配置
+  const polygons = useMemo(() => {
     if (!shouldRender) return [];
     const result: {
       key: string;
@@ -37,7 +37,7 @@ export function SiteMarkers({ sites, maxZoom = 16 }: SiteMarkersProps) {
       const isHighlighted = site.id === highlightedSiteId;
       for (const sector of site.sectors) {
         result.push({
-          key: `${site.id}_${sector.id}`,
+          key: `${site.id}_${sector.id}_poly`,
           sector,
           siteName: site.siteName,
           siteLat: site.latitude,
@@ -53,14 +53,14 @@ export function SiteMarkers({ sites, maxZoom = 16 }: SiteMarkersProps) {
 
   return (
     <>
-      {markers.map((m) => (
-        <SectorMarker
-          key={m.key}
-          sector={m.sector}
-          siteName={m.siteName}
-          siteLat={m.siteLat}
-          siteLng={m.siteLng}
-          isHighlighted={m.isHighlighted}
+      {polygons.map((p) => (
+        <SectorPolygon
+          key={p.key}
+          sector={p.sector}
+          siteName={p.siteName}
+          siteLat={p.siteLat}
+          siteLng={p.siteLng}
+          isHighlighted={p.isHighlighted}
         />
       ))}
     </>

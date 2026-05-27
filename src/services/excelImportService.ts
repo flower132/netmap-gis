@@ -1,31 +1,14 @@
 import * as XLSX from 'xlsx';
 import type { Site, Sector, ImportStats } from '@/types';
 import { generateId } from '@/utils/geo';
-
-// ==================== 字段映射配置 ====================
-
-const LONGITUDE_FIELDS = ['经度', '小区经度', 'longitude', 'lng', 'lon', 'LONGITUDE', 'LNG', 'LON'];
-const LATITUDE_FIELDS = ['纬度', '小区纬度', 'latitude', 'lat', 'LATITUDE', 'LAT'];
-const SITE_NAME_FIELDS = ['站名', '小区名称', 'cellname', 'name', '站点名称', 'site_name', 'SITE_NAME', 'NAME', 'CELLNAME'];
-
-const OPTIONAL_FIELD_MAP: Record<string, string[]> = {
-  pci: ['PCI', 'pci', 'Pci', '物理小区标识'],
-  azimuth: ['方位角', 'azimuth', 'AZIMUTH', '方向角', '天线方向角'],
-  band: ['Band', 'band', 'BAND', '频段', '频带'],
-  arfcn: ['中心频点', '频点号', 'arfcn', 'ARFCN', 'earfcn', 'EARFCN', 'nrarfcn', 'NRARFCN'],
-  bandwidth: ['带宽', 'bandwidth', 'BANDWIDTH', 'BW', 'bw'],
-  height: ['挂高', 'height', 'HEIGHT', '天线挂高', '天线高度'],
-  tech: ['制式', 'tech', 'TECH', '网络制式', 'rat', 'RAT', 'type', 'TYPE'],
-  tac: ['TAC', 'tac', 'Tac', '跟踪区码'],
-  sectorId: [' SectorID', 'sector_id', 'SECTOR_ID', '扇区ID', '扇区标识', 'sectorid', 'SECTORID'],
-};
-
-interface FieldMapping {
-  siteName: string;
-  latitude: string;
-  longitude: string;
-  optionals: Record<string, string | undefined>;
-}
+import {
+  detectFieldMapping,
+  parseNumber,
+  parseString,
+  parseTech,
+  extractField,
+  type FieldMappingResult,
+} from '@/gis/fieldMapper';
 
 interface ParsedRow {
   siteName: string;
@@ -34,105 +17,30 @@ interface ParsedRow {
   raw: Record<string, unknown>;
 }
 
-// ==================== 字段识别 ====================
-
-/**
- * 识别 Excel 表头字段映射
- */
-function detectFieldMapping(headers: string[]): { mapping: FieldMapping; missing: string[] } {
-  const mapping: FieldMapping = {
-    siteName: '',
-    latitude: '',
-    longitude: '',
-    optionals: {},
-  };
-
-  const missing: string[] = [];
-
-  // 识别经度
-  mapping.longitude = headers.find((h) => LONGITUDE_FIELDS.includes(h)) || '';
-  if (!mapping.longitude) missing.push('经度');
-
-  // 识别纬度
-  mapping.latitude = headers.find((h) => LATITUDE_FIELDS.includes(h)) || '';
-  if (!mapping.latitude) missing.push('纬度');
-
-  // 识别站名
-  mapping.siteName = headers.find((h) => SITE_NAME_FIELDS.includes(h)) || '';
-  if (!mapping.siteName) missing.push('站名');
-
-  // 识别可选字段
-  for (const [key, candidates] of Object.entries(OPTIONAL_FIELD_MAP)) {
-    const found = headers.find((h) => candidates.includes(h));
-    if (found) {
-      mapping.optionals[key] = found;
-    }
-  }
-
-  return { mapping, missing };
-}
+// ==================== 字段识别（已迁移到 fieldMapper）====================
 
 // ==================== 数据解析 ====================
-
-function parseValue(raw: unknown): string | number | undefined {
-  if (raw === null || raw === undefined) return undefined;
-  if (typeof raw === 'number') return raw;
-  if (typeof raw === 'string') {
-    const trimmed = raw.trim();
-    if (trimmed === '' || trimmed === '-' || trimmed === 'N/A') return undefined;
-    const num = Number(trimmed);
-    if (!isNaN(num) && trimmed !== '') return num;
-    return trimmed;
-  }
-  return String(raw);
-}
-
-function parseNumber(raw: unknown): number | undefined {
-  const val = parseValue(raw);
-  if (typeof val === 'number') return val;
-  if (typeof val === 'string') {
-    const num = Number(val);
-    return isNaN(num) ? undefined : num;
-  }
-  return undefined;
-}
-
-function parseString(raw: unknown): string | undefined {
-  const val = parseValue(raw);
-  if (typeof val === 'string') return val;
-  if (typeof val === 'number') return String(val);
-  return undefined;
-}
-
-function parseTech(raw: unknown): string | undefined {
-  const val = parseString(raw);
-  if (!val) return undefined;
-  const upper = val.toUpperCase();
-  if (upper.includes('LTE') || upper.includes('4G')) return '4G';
-  if (upper.includes('NR') || upper.includes('5G')) return '5G';
-  return val;
-}
 
 /**
  * 解析单行数据
  */
 function parseRow(
   row: Record<string, unknown>,
-  mapping: FieldMapping,
+  mapping: FieldMappingResult['mapping'],
   rowIndex: number
 ): { parsed: ParsedRow | null; error: string | null } {
-  const siteName = parseString(row[mapping.siteName]);
-  const lat = parseNumber(row[mapping.latitude]);
-  const lng = parseNumber(row[mapping.longitude]);
+  const siteName = parseString(extractField(row, mapping, 'siteName'));
+  const lat = parseNumber(extractField(row, mapping, 'latitude'));
+  const lng = parseNumber(extractField(row, mapping, 'longitude'));
 
   if (!siteName) {
     return { parsed: null, error: `第 ${rowIndex + 1} 行: 站名不能为空` };
   }
   if (lat === undefined || isNaN(lat) || lat < -90 || lat > 90) {
-    return { parsed: null, error: `第 ${rowIndex + 1} 行: 纬度无效 (${row[mapping.latitude]})` };
+    return { parsed: null, error: `第 ${rowIndex + 1} 行: 纬度无效` };
   }
   if (lng === undefined || isNaN(lng) || lng < -180 || lng > 180) {
-    return { parsed: null, error: `第 ${rowIndex + 1} 行: 经度无效 (${row[mapping.longitude]})` };
+    return { parsed: null, error: `第 ${rowIndex + 1} 行: 经度无效` };
   }
 
   return {
@@ -146,19 +54,61 @@ function parseRow(
   };
 }
 
+/**
+ * 解析可选字段为 Sector
+ */
+function parseSectorFromRow(row: Record<string, unknown>, mapping: FieldMappingResult['mapping']): Sector {
+  const sector: Sector = {
+    id: generateId(),
+  };
+
+  const pci = parseNumber(extractField(row, mapping, 'pci'));
+  if (pci !== undefined) sector.pci = pci;
+
+  const azimuth = parseNumber(extractField(row, mapping, 'azimuth'));
+  if (azimuth !== undefined) sector.azimuth = azimuth;
+
+  const band = parseString(extractField(row, mapping, 'band'));
+  if (band !== undefined) sector.band = band;
+
+  const arfcn = parseNumber(extractField(row, mapping, 'arfcn'));
+  if (arfcn !== undefined) sector.arfcn = arfcn;
+
+  const bandwidth = parseString(extractField(row, mapping, 'bandwidth'));
+  if (bandwidth !== undefined) sector.bandwidth = bandwidth;
+
+  const height = parseNumber(extractField(row, mapping, 'height'));
+  if (height !== undefined) sector.height = height;
+
+  const tech = parseTech(extractField(row, mapping, 'tech'));
+  if (tech !== undefined) sector.tech = tech;
+
+  const tac = parseNumber(extractField(row, mapping, 'tac'));
+  if (tac !== undefined) sector.tac = tac;
+
+  const sectorId = parseString(extractField(row, mapping, 'sectorId'));
+  if (sectorId !== undefined) {
+    sector.sectorId = sectorId;
+  } else {
+    const cellId = parseString(extractField(row, mapping, 'cellId'));
+    if (cellId !== undefined) sector.sectorId = cellId;
+  }
+
+  return sector;
+}
+
 // ==================== 站点聚合 ====================
 
 /**
  * 将行数据聚合成 Site（按站名分组）
  */
-function aggregateSites(rows: ParsedRow[], mapping: FieldMapping): Site[] {
+function aggregateSites(rows: ParsedRow[], mapping: FieldMappingResult['mapping']): Site[] {
   const siteMap = new Map<string, { siteName: string; lat: number; lng: number; rows: ParsedRow[] }>();
 
   for (const row of rows) {
     const existing = siteMap.get(row.siteName);
     if (existing) {
       existing.rows.push(row);
-      // 使用第一个出现的坐标作为站点坐标
     } else {
       siteMap.set(row.siteName, {
         siteName: row.siteName,
@@ -173,38 +123,7 @@ function aggregateSites(rows: ParsedRow[], mapping: FieldMapping): Site[] {
 
   for (const [, group] of siteMap) {
     const sectors: Sector[] = group.rows.map((row, idx) => {
-      const sector: Sector = {
-        id: generateId(),
-      };
-
-      // 解析可选字段
-      if (mapping.optionals.pci) {
-        sector.pci = parseNumber(row.raw[mapping.optionals.pci]);
-      }
-      if (mapping.optionals.azimuth) {
-        sector.azimuth = parseNumber(row.raw[mapping.optionals.azimuth]);
-      }
-      if (mapping.optionals.band) {
-        sector.band = parseString(row.raw[mapping.optionals.band]);
-      }
-      if (mapping.optionals.arfcn) {
-        sector.arfcn = parseNumber(row.raw[mapping.optionals.arfcn]);
-      }
-      if (mapping.optionals.bandwidth) {
-        sector.bandwidth = parseString(row.raw[mapping.optionals.bandwidth]);
-      }
-      if (mapping.optionals.height) {
-        sector.height = parseNumber(row.raw[mapping.optionals.height]);
-      }
-      if (mapping.optionals.tech) {
-        sector.tech = parseTech(row.raw[mapping.optionals.tech]);
-      }
-      if (mapping.optionals.tac) {
-        sector.tac = parseNumber(row.raw[mapping.optionals.tac]);
-      }
-      if (mapping.optionals.sectorId) {
-        sector.sectorId = parseString(row.raw[mapping.optionals.sectorId]);
-      }
+      const sector = parseSectorFromRow(row.raw, mapping);
 
       // 如果没有扇区ID，使用序号
       if (!sector.sectorId) {

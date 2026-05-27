@@ -1,4 +1,4 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useMemo } from 'react';
 import { Upload, Trash2, FileDown, AlertCircle, Navigation, FileSpreadsheet } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { useMapStore } from '@/store/useMapStore';
@@ -6,18 +6,21 @@ import { Button } from '@/components/ui/Button';
 import { SearchBox } from '@/components/ui/SearchBox';
 import { StationList } from '@/components/ui/StationList';
 import { SiteList } from '@/components/ui/SiteList';
+import { LayerPanel } from '@/components/layers/LayerPanel';
 import { exportStationsToCSV, downloadCSV } from '@/services/stationService';
 import { exportSitesToExcel, downloadExcel } from '@/services/excelImportService';
+import { getAllSitesFromLayers, computeLayerStats } from '@/layers/layerManager';
 
 /**
  * 左侧边栏组件（桌面端）
- * 包含导入、搜索、统计、列表等全部侧边功能
+ * 包含图层控制、导入、搜索、统计、列表等全部侧边功能
  * 移动端使用 MobileDrawer 包裹此组件
  */
 export function Sidebar() {
   const csvInputRef = useRef<HTMLInputElement>(null);
   const excelInputRef = useRef<HTMLInputElement>(null);
 
+  const gisLayers = useAppStore((state) => state.gisLayers);
   const stations = useAppStore((state) => state.stations);
   const sites = useAppStore((state) => state.sites);
   const importErrors = useAppStore((state) => state.importErrors);
@@ -28,17 +31,29 @@ export function Sidebar() {
   const clearStations = useAppStore((state) => state.clearStations);
   const flyTo = useMapStore((state) => state.flyTo);
 
-  const hasSiteData = sites.length > 0;
-  const totalItems = stations.length + sites.length;
+  const allSites = useMemo(() => getAllSitesFromLayers(gisLayers), [gisLayers]);
+  const layerStats = useMemo(() => computeLayerStats(gisLayers), [gisLayers]);
+
+  const hasSiteData = allSites.length > 0;
+  const hasAnyData = stations.length > 0 || allSites.length > 0;
+  const totalItems = stations.length + allSites.length;
 
   // 统计（兼容两种数据）
-  const stats = {
-    total: totalItems,
-    active: stations.filter((s) => s.status === 'active').length + sites.filter((s) => s.status === 'active').length,
-    inactive: stations.filter((s) => s.status === 'inactive').length + sites.filter((s) => s.status === 'inactive').length,
-    maintenance: stations.filter((s) => s.status === 'maintenance').length + sites.filter((s) => s.status === 'maintenance').length,
-    planning: stations.filter((s) => s.status === 'planning').length + sites.filter((s) => s.status === 'planning').length,
-  };
+  const stats = useMemo(() => {
+    const active =
+      stations.filter((s) => s.status === 'active').length +
+      allSites.filter((s) => s.status === 'active').length;
+    const inactive =
+      stations.filter((s) => s.status === 'inactive').length +
+      allSites.filter((s) => s.status === 'inactive').length;
+    const maintenance =
+      stations.filter((s) => s.status === 'maintenance').length +
+      allSites.filter((s) => s.status === 'maintenance').length;
+    const planning =
+      stations.filter((s) => s.status === 'planning').length +
+      allSites.filter((s) => s.status === 'planning').length;
+    return { total: totalItems, active, inactive, maintenance, planning };
+  }, [stations, allSites, totalItems]);
 
   const handleImportCSVClick = useCallback(() => {
     csvInputRef.current?.click();
@@ -72,16 +87,21 @@ export function Sidebar() {
 
   const handleExport = useCallback(() => {
     if (hasSiteData) {
-      const wb = exportSitesToExcel(sites);
+      const wb = exportSitesToExcel(allSites);
       downloadExcel(wb, `sites_${Date.now()}.xlsx`);
     } else {
       const csv = exportStationsToCSV(stations);
       downloadCSV(csv, `stations_${Date.now()}.csv`);
     }
-  }, [stations, sites, hasSiteData]);
+  }, [stations, allSites, hasSiteData]);
 
   return (
     <div className="flex flex-col h-full w-full">
+      {/* 图层控制面板 */}
+      <div className="p-4 border-b border-gis-700 shrink-0">
+        <LayerPanel />
+      </div>
+
       {/* 工具栏 */}
       <div className="p-4 space-y-3 border-b border-gis-700 shrink-0">
         {/* Excel 导入（新版） */}
@@ -126,7 +146,7 @@ export function Sidebar() {
             size="sm"
             className="flex-1 justify-center min-h-[40px]"
             onClick={clearStations}
-            disabled={totalItems === 0}
+            disabled={!hasAnyData}
           >
             <Trash2 className="w-3.5 h-3.5" />
             清空
@@ -135,7 +155,7 @@ export function Sidebar() {
             variant="secondary"
             size="sm"
             className="flex-1 justify-center min-h-[40px]"
-            disabled={totalItems === 0}
+            disabled={!hasAnyData}
             onClick={handleExport}
           >
             <FileDown className="w-3.5 h-3.5" />
@@ -204,7 +224,7 @@ export function Sidebar() {
 
       {/* 数据列表 */}
       {hasSiteData ? (
-        <SiteList sites={sites} />
+        <SiteList sites={allSites} />
       ) : (
         <StationList stations={stations} />
       )}

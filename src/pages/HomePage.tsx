@@ -1,9 +1,11 @@
+import { useMemo } from 'react';
 import { Header } from '@/components/layout/Header';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { MobileDrawer } from '@/components/layout/MobileDrawer';
 import { MapView } from '@/components/map/MapView';
 import { useAppStore } from '@/store/useAppStore';
 import { useIsMobile } from '@/hooks/useMediaQuery';
+import { getAllSitesFromLayers } from '@/layers/layerManager';
 
 /**
  * 首页/主页面
@@ -11,11 +13,17 @@ import { useIsMobile } from '@/hooks/useMediaQuery';
  */
 export function HomePage() {
   const isMobile = useIsMobile();
+  const gisLayers = useAppStore((state) => state.gisLayers);
   const stations = useAppStore((state) => state.stations);
-  const sites = useAppStore((state) => state.sites);
 
-  const totalActive = stations.filter((s) => s.status === 'active').length + sites.filter((s) => s.status === 'active').length;
-  const totalMaintenance = stations.filter((s) => s.status === 'maintenance').length + sites.filter((s) => s.status === 'maintenance').length;
+  const allSites = useMemo(() => getAllSitesFromLayers(gisLayers), [gisLayers]);
+
+  const totalActive =
+    stations.filter((s) => s.status === 'active').length +
+    allSites.filter((s) => s.status === 'active').length;
+  const totalMaintenance =
+    stations.filter((s) => s.status === 'maintenance').length +
+    allSites.filter((s) => s.status === 'maintenance').length;
 
   return (
     <div className="h-full flex flex-col bg-gis-950 overflow-hidden">
@@ -41,7 +49,7 @@ export function HomePage() {
           <MapView />
 
           {/* 移动端浮动数据概览 */}
-          {isMobile && (stations.length > 0 || sites.length > 0) && (
+          {isMobile && (stations.length > 0 || allSites.length > 0) && (
             <div className="absolute top-4 left-4 right-16 z-[1000] flex gap-2 overflow-x-auto pointer-events-none">
               <div className="glass-panel px-3 py-1.5 flex items-center gap-2 shrink-0">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
