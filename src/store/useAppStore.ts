@@ -228,12 +228,21 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: STORAGE_KEYS.stations,
+      version: 1,
       partialize: (state) => ({
         stations: state.stations,
         sites: state.sites,
         baseMap: state.baseMap,
         activeLayers: state.activeLayers,
       }),
+      migrate: (persisted: unknown, _version: number) => {
+        // v0 → v1: osm/dark/satellite 在国内不可用，自动迁移到 gaode
+        const state = persisted as Record<string, unknown>;
+        if (state?.baseMap && state.baseMap !== 'gaode') {
+          return { ...state, baseMap: 'gaode' };
+        }
+        return state;
+      },
     }
   )
 );

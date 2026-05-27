@@ -22,37 +22,39 @@ export const APP_CONFIG: AppConfig = {
  */
 export const BASE_MAPS: BaseMapConfig[] = [
   {
-    id: 'osm',
-    name: 'OpenStreetMap',
-    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    maxZoom: 19,
-  },
-  {
-    id: 'dark',
-    name: '深色地图',
-    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-    subdomains: ['a', 'b', 'c', 'd'],
-    maxZoom: 20,
-  },
-  {
-    id: 'satellite',
-    name: '卫星地图',
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    attribution:
-      '&copy; <a href="https://www.esri.com/">Esri</a> &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
-    maxZoom: 18,
-  },
-  {
     id: 'gaode',
-    name: '高德地图',
+    name: '高德标准',
     url: 'https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}',
     attribution:
       '&copy; <a href="https://www.amap.com/">高德地图</a>',
     subdomains: ['1', '2', '3', '4'],
+    maxZoom: 18,
+  },
+  {
+    id: 'satellite',
+    name: '高德卫星',
+    url: 'https://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}',
+    attribution:
+      '&copy; <a href="https://www.amap.com/">高德地图</a>',
+    subdomains: ['1', '2', '3', '4'],
+    maxZoom: 18,
+  },
+  {
+    id: 'dark',
+    name: '暗色地图',
+    url: 'https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}',
+    attribution:
+      '&copy; <a href="https://www.amap.com/">高德地图</a>',
+    subdomains: ['1', '2', '3', '4'],
+    maxZoom: 18,
+  },
+  {
+    id: 'osm',
+    name: '天地图',
+    url: 'https://t{s}.tianditu.gov.cn/vec_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=vec&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',
+    attribution:
+      '&copy; <a href="https://www.tianditu.gov.cn/">天地图</a>',
+    subdomains: ['0', '1', '2', '3', '4', '5', '6', '7'],
     maxZoom: 18,
   },
 ];
