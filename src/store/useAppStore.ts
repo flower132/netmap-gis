@@ -1,22 +1,29 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Station, SearchType, BaseMapType, MapLayerConfig, LayerType } from '@/types';
+import type { Station, Site, SearchType, BaseMapType, MapLayerConfig, LayerType, ImportStats, GeocodeResult } from '@/types';
 import { importStationsFromCSV } from '@/services/stationService';
+import { importSitesFromExcel } from '@/services/excelImportService';
 import { parseCoordinates } from '@/utils/geo';
 import { STORAGE_KEYS, DEFAULT_BASE_MAP } from '@/utils/constants';
 
 interface AppState {
   // 数据层
   stations: Station[];
+  sites: Site[];
   selectedStation: Station | null;
+  selectedSite: Site | null;
   importErrors: string[];
+  importStats: ImportStats | null;
   isImporting: boolean;
 
   // 搜索与列表
   searchQuery: string;
   searchType: SearchType;
   searchResults: Station[] | null;
+  placeResults: GeocodeResult[];
+  isSearchingPlace: boolean;
   highlightedStationId: string | null;
+  highlightedSiteId: string | null;
 
   // 底图
   baseMap: BaseMapType;
@@ -29,15 +36,21 @@ interface AppState {
 
   // Actions
   setSelectedStation: (station: Station | null) => void;
+  setSelectedSite: (site: Site | null) => void;
   addStations: (stations: Station[]) => void;
+  addSites: (sites: Site[]) => void;
   removeStation: (id: string) => void;
   clearStations: () => void;
   importCSV: (file: File) => Promise<{ success: boolean; count: number }>;
+  importExcel: (file: File) => Promise<{ success: boolean; count: number; failed: number }>;
 
   setSearchQuery: (query: string) => void;
   setSearchType: (type: SearchType) => void;
   executeSearch: () => Station[] | [number, number] | null;
+  setPlaceResults: (results: GeocodeResult[]) => void;
+  setIsSearchingPlace: (v: boolean) => void;
   setHighlightedStationId: (id: string | null) => void;
+  setHighlightedSiteId: (id: string | null) => void;
   clearSearch: () => void;
 
   setBaseMap: (map: BaseMapType) => void;
@@ -53,13 +66,19 @@ export const useAppStore = create<AppState>()(
     (set, get) => ({
       // 初始状态
       stations: [],
+      sites: [],
       selectedStation: null,
+      selectedSite: null,
       importErrors: [],
+      importStats: null,
       isImporting: false,
       searchQuery: '',
       searchType: 'name',
       searchResults: null,
+      placeResults: [],
+      isSearchingPlace: false,
       highlightedStationId: null,
+      highlightedSiteId: null,
       baseMap: DEFAULT_BASE_MAP,
       isMobileDrawerOpen: false,
       activeLayers: [
@@ -73,9 +92,15 @@ export const useAppStore = create<AppState>()(
       setSelectedStation: (station) =>
         set({ selectedStation: station }),
 
+      setSelectedSite: (site) =>
+        set({ selectedSite: site }),
+
       // 添加基站
       addStations: (newStations) =>
         set((state) => ({ stations: [...state.stations, ...newStations] })),
+
+      addSites: (newSites) =>
+        set((state) => ({ sites: [...state.sites, ...newSites] })),
 
       // 移除基站
       removeStation: (id) =>
@@ -86,11 +111,11 @@ export const useAppStore = create<AppState>()(
 
       // 清空基站
       clearStations: () =>
-        set({ stations: [], selectedStation: null, searchResults: null }),
+        set({ stations: [], sites: [], selectedStation: null, selectedSite: null, searchResults: null, importStats: null }),
 
-      // 导入 CSV
+      // 导入 CSV（旧版兼容）
       importCSV: async (file) => {
-        set({ isImporting: true, importErrors: [] });
+        set({ isImporting: true, importErrors: [], importStats: null });
         try {
           const result = await importStationsFromCSV(file);
           if (result.success && result.stations.length > 0) {
@@ -100,6 +125,30 @@ export const useAppStore = create<AppState>()(
           }
           set({ importErrors: result.errors });
           return { success: result.success, count: result.count };
+        } finally {
+          set({ isImporting: false });
+        }
+      },
+
+      // 导入 Excel（新版）
+      importExcel: async (file) => {
+        set({ isImporting: true, importErrors: [], importStats: null });
+        try {
+          const { sites, stats } = await importSitesFromExcel(file);
+          if (sites.length > 0) {
+            set((state) => ({
+              sites: [...state.sites, ...sites],
+            }));
+          }
+          set({
+            importErrors: stats.errors,
+            importStats: stats,
+          });
+          return {
+            success: sites.length > 0,
+            count: stats.successCount,
+            failed: stats.failedCount,
+          };
         } finally {
           set({ isImporting: false });
         }
@@ -136,12 +185,22 @@ export const useAppStore = create<AppState>()(
         return results;
       },
 
+      setPlaceResults: (results) => set({ placeResults: results }),
+      setIsSearchingPlace: (v) => set({ isSearchingPlace: v }),
+
       // 高亮
       setHighlightedStationId: (id) => set({ highlightedStationId: id }),
+      setHighlightedSiteId: (id) => set({ highlightedSiteId: id }),
 
       // 清除搜索
       clearSearch: () =>
-        set({ searchQuery: '', searchResults: null, highlightedStationId: null }),
+        set({
+          searchQuery: '',
+          searchResults: null,
+          placeResults: [],
+          highlightedStationId: null,
+          highlightedSiteId: null,
+        }),
 
       // 底图
       setBaseMap: (map) => set({ baseMap: map }),
@@ -171,6 +230,7 @@ export const useAppStore = create<AppState>()(
       name: STORAGE_KEYS.stations,
       partialize: (state) => ({
         stations: state.stations,
+        sites: state.sites,
         baseMap: state.baseMap,
         activeLayers: state.activeLayers,
       }),

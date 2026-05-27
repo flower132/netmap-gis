@@ -79,6 +79,7 @@ export function importStationsFromCSV(file: File): Promise<ImportResult & { stat
         resolve({
           success: stations.length > 0,
           count: stations.length,
+          failed: 0,
           errors: errors.slice(0, 10),
           stations,
         });
@@ -87,6 +88,7 @@ export function importStationsFromCSV(file: File): Promise<ImportResult & { stat
         resolve({
           success: false,
           count: 0,
+          failed: 0,
           errors: [`文件解析失败: ${error.message}`],
           stations: [],
         });

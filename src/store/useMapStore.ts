@@ -10,6 +10,9 @@ interface MapState {
   // FlyTo 目标（触发地图移动）
   flyToTarget: FlyToTarget | null;
 
+  // 地名搜索结果临时标记位置
+  searchResultMarker: [number, number] | null;
+
   // 预留：热力图数据
   heatmapData: HeatmapPoint[];
 
@@ -26,6 +29,7 @@ interface MapState {
   setView: (center: [number, number], zoom: number) => void;
   flyTo: (coords: [number, number], zoom?: number, highlightId?: string | null) => void;
   clearFlyTo: () => void;
+  setSearchResultMarker: (coords: [number, number] | null) => void;
 
   // 预留 Actions
   setHeatmapData: (data: HeatmapPoint[]) => void;
@@ -38,6 +42,7 @@ export const useMapStore = create<MapState>((set) => ({
   center: APP_CONFIG.map.defaultCenter,
   zoom: APP_CONFIG.map.defaultZoom,
   flyToTarget: null,
+  searchResultMarker: null,
   heatmapData: [],
   kpiData: {},
   activeKpi: null,
@@ -53,6 +58,7 @@ export const useMapStore = create<MapState>((set) => ({
     }),
 
   clearFlyTo: () => set({ flyToTarget: null }),
+  setSearchResultMarker: (coords) => set({ searchResultMarker: coords }),
 
   setHeatmapData: (data) => set({ heatmapData: data }),
 

@@ -131,6 +131,27 @@
   animation: markerPulse 1s ease-in-out infinite;
 }
 
+/* Sector marker highlight animation */
+@keyframes sectorPulse {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 2px currentColor);
+  }
+  50% {
+    transform: scale(1.15);
+    filter: drop-shadow(0 0 6px currentColor);
+  }
+}
+
+.sector-highlight div {
+  animation: sectorPulse 1s ease-in-out infinite;
+}
+
+.sector-marker-icon {
+  background: transparent !important;
+  border: none !important;
+}
+
 /* Station cluster overrides */
 .station-cluster-icon {
   background: transparent !important;

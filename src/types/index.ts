@@ -4,7 +4,45 @@
 export type StationStatus = 'active' | 'inactive' | 'maintenance' | 'planning';
 
 /**
- * 基站数据接口
+ * 扇区数据接口
+ * 一个站点下的单个小区/扇区
+ */
+export interface Sector {
+  id: string;
+  sectorId?: string;
+  pci?: number;
+  azimuth?: number;
+  band?: string;
+  arfcn?: number;
+  bandwidth?: string;
+  tech?: string; // '4G' | 'LTE' | '5G' | 'NR' | etc
+  tac?: number;
+  height?: number;
+  // 扩展字段（动态）
+  [key: string]: unknown;
+}
+
+/**
+ * 站点数据接口
+ * 包含多个扇区的聚合站点
+ */
+export interface Site {
+  id: string;
+  siteName: string;
+  latitude: number;
+  longitude: number;
+  status: StationStatus;
+  sectors: Sector[];
+  // 兼容旧字段
+  operator?: string;
+  address?: string;
+  // 扩展字段
+  [key: string]: unknown;
+}
+
+/**
+ * 基站数据接口（向后兼容）
+ * 旧版单点基站结构
  */
 export interface Station {
   id: string;
@@ -36,7 +74,7 @@ export interface MapViewState {
 /**
  * 搜索查询类型
  */
-export type SearchType = 'name' | 'coordinates';
+export type SearchType = 'name' | 'coordinates' | 'place';
 
 /**
  * 搜索参数
@@ -47,11 +85,33 @@ export interface SearchParams {
 }
 
 /**
+ * Nominatim 搜索结果
+ */
+export interface GeocodeResult {
+  place_id: number;
+  lat: string;
+  lon: string;
+  display_name: string;
+  type: string;
+}
+
+/**
  * 导入结果
  */
 export interface ImportResult {
   success: boolean;
   count: number;
+  failed: number;
+  errors: string[];
+}
+
+/**
+ * Excel 导入统计
+ */
+export interface ImportStats {
+  totalRows: number;
+  successCount: number;
+  failedCount: number;
   errors: string[];
 }
 

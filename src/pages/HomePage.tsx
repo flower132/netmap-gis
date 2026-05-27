@@ -12,6 +12,10 @@ import { useIsMobile } from '@/hooks/useMediaQuery';
 export function HomePage() {
   const isMobile = useIsMobile();
   const stations = useAppStore((state) => state.stations);
+  const sites = useAppStore((state) => state.sites);
+
+  const totalActive = stations.filter((s) => s.status === 'active').length + sites.filter((s) => s.status === 'active').length;
+  const totalMaintenance = stations.filter((s) => s.status === 'maintenance').length + sites.filter((s) => s.status === 'maintenance').length;
 
   return (
     <div className="h-full flex flex-col bg-gis-950 overflow-hidden">
@@ -37,18 +41,18 @@ export function HomePage() {
           <MapView />
 
           {/* 移动端浮动数据概览 */}
-          {isMobile && stations.length > 0 && (
+          {isMobile && (stations.length > 0 || sites.length > 0) && (
             <div className="absolute top-4 left-4 right-16 z-[1000] flex gap-2 overflow-x-auto pointer-events-none">
               <div className="glass-panel px-3 py-1.5 flex items-center gap-2 shrink-0">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                 <span className="text-[10px] text-gis-200 font-mono">
-                  {stations.filter((s) => s.status === 'active').length} 运行
+                  {totalActive} 运行
                 </span>
               </div>
               <div className="glass-panel px-3 py-1.5 flex items-center gap-2 shrink-0">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                 <span className="text-[10px] text-gis-200 font-mono">
-                  {stations.filter((s) => s.status === 'maintenance').length} 维护
+                  {totalMaintenance} 维护
                 </span>
               </div>
             </div>
