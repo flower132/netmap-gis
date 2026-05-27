@@ -1,5 +1,5 @@
-import { useCallback, useState, useEffect, useRef, type KeyboardEvent } from 'react';
-import { Search, MapPin, Loader2 } from 'lucide-react';
+import { useCallback, useState, useEffect, useRef, useMemo, type KeyboardEvent } from 'react';
+import { Search, MapPin, Radio, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { useAppStore } from '@/store/useAppStore';
@@ -7,17 +7,22 @@ import { useMapStore } from '@/store/useMapStore';
 import { cn } from '@/utils/cn';
 import { SEARCH_FLY_ZOOM } from '@/utils/constants';
 import { searchPlace } from '@/services/geocodeService';
+import { searchSitesInLayers } from '@/layers/layerManager';
 import debounce from 'lodash.debounce';
+import type { Site } from '@/types';
 
 /**
  * 搜索框组件
  * 支持站名/坐标/地名搜索，联动地图 flyTo 和高亮
+ * 站名模式：输入时实时模糊匹配，下拉显示候选站点列表
+ * 地名模式：输入时调用地理编码 API，下拉显示地名建议
  */
 export function SearchBox() {
   const searchQuery = useAppStore((state) => state.searchQuery);
   const searchType = useAppStore((state) => state.searchType);
   const placeResults = useAppStore((state) => state.placeResults);
   const isSearchingPlace = useAppStore((state) => state.isSearchingPlace);
+  const gisLayers = useAppStore((state) => state.gisLayers);
   const setSearchQuery = useAppStore((state) => state.setSearchQuery);
   const setSearchType = useAppStore((state) => state.setSearchType);
   const setPlaceResults = useAppStore((state) => state.setPlaceResults);
@@ -28,21 +33,28 @@ export function SearchBox() {
   const flyTo = useMapStore((state) => state.flyTo);
   const setSearchResultMarker = useMapStore((state) => state.setSearchResultMarker);
 
-  const [showPlaceDropdown, setShowPlaceDropdown] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // 站名模糊搜索结果（实时）
+  const stationSuggestions = useMemo<Site[]>(() => {
+    if (searchType !== 'name' || !searchQuery.trim()) return [];
+    const results = searchSitesInLayers(gisLayers, searchQuery.trim()).slice(0, 8);
+    return results;
+  }, [searchType, searchQuery, gisLayers]);
 
   // 点击外部关闭下拉
   useEffect(() => {
     function handleDocClick(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setShowPlaceDropdown(false);
+        setShowDropdown(false);
       }
     }
-    if (showPlaceDropdown) {
+    if (showDropdown) {
       document.addEventListener('mousedown', handleDocClick);
     }
     return () => document.removeEventListener('mousedown', handleDocClick);
-  }, [showPlaceDropdown]);
+  }, [showDropdown]);
 
   // 地名搜索 debounce
   const debouncedSearchPlace = useCallback(
@@ -65,13 +77,17 @@ export function SearchBox() {
     [setPlaceResults, setIsSearchingPlace]
   );
 
-  // 监听输入变化，地名模式下自动搜索
+  // 监听输入变化
   useEffect(() => {
     if (searchType === 'place') {
       debouncedSearchPlace(searchQuery);
+      if (searchQuery.trim()) setShowDropdown(true);
+    } else if (searchType === 'name') {
+      setPlaceResults([]);
+      if (searchQuery.trim()) setShowDropdown(true);
     } else {
       setPlaceResults([]);
-      setShowPlaceDropdown(false);
+      setShowDropdown(false);
     }
     return () => {
       debouncedSearchPlace.cancel();
@@ -114,9 +130,27 @@ export function SearchBox() {
 
   const handleClear = useCallback(() => {
     clearSearch();
-    setShowPlaceDropdown(false);
+    setShowDropdown(false);
     setSearchResultMarker(null);
   }, [clearSearch, setSearchResultMarker]);
+
+  const handleStationSelect = useCallback(
+    (site: Site) => {
+      setSelectedStation({
+        id: site.id,
+        station_name: site.siteName,
+        latitude: site.latitude,
+        longitude: site.longitude,
+        pci: site.sectors[0]?.pci ?? 0,
+        band: site.sectors[0]?.band ?? 'N/A',
+        status: site.status,
+      });
+      flyTo([site.latitude, site.longitude], SEARCH_FLY_ZOOM, site.id);
+      setShowDropdown(false);
+      setSearchQuery(site.siteName);
+    },
+    [setSelectedStation, flyTo, setSearchQuery]
+  );
 
   const handlePlaceSelect = useCallback(
     (lat: string, lon: string) => {
@@ -124,7 +158,7 @@ export function SearchBox() {
       const lonNum = parseFloat(lon);
       flyTo([latNum, lonNum], 15);
       setSearchResultMarker([latNum, lonNum]);
-      setShowPlaceDropdown(false);
+      setShowDropdown(false);
       setSearchQuery('');
     },
     [flyTo, setSearchResultMarker, setSearchQuery]
@@ -181,13 +215,14 @@ export function SearchBox() {
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);
-              if (searchType === 'place') {
-                setShowPlaceDropdown(true);
+              if (searchType === 'place' || searchType === 'name') {
+                setShowDropdown(true);
               }
             }}
             onFocus={() => {
-              if (searchType === 'place' && placeResults.length > 0) {
-                setShowPlaceDropdown(true);
+              if ((searchType === 'place' && placeResults.length > 0) ||
+                  (searchType === 'name' && stationSuggestions.length > 0)) {
+                setShowDropdown(true);
               }
             }}
             onKeyDown={handleKeyDown}
@@ -201,9 +236,43 @@ export function SearchBox() {
             className="text-sm"
           />
 
+          {/* 站名搜索结果下拉 */}
+          {searchType === 'name' && showDropdown && stationSuggestions.length > 0 && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-gis-900 border border-gis-700 rounded-md shadow-xl z-dropdown max-h-64 overflow-y-auto">
+              {stationSuggestions.map((site) => (
+                <button
+                  key={site.id}
+                  className="w-full text-left px-3 py-2.5 hover:bg-gis-800 transition-colors flex items-start gap-2 border-b border-gis-800/50 last:border-0"
+                  onClick={() => handleStationSelect(site)}
+                >
+                  <Radio className="w-3.5 h-3.5 text-emerald-400 mt-0.5 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs text-gis-100 truncate font-medium">{site.siteName}</div>
+                    <div className="text-[10px] text-gis-500 mt-0.5">
+                      {site.sectors.length} 扇区 · {site.latitude.toFixed(4)}, {site.longitude.toFixed(4)}
+                      {site.status && (
+                        <span className={cn(
+                          'ml-1.5 px-1 py-0.5 rounded text-[9px]',
+                          site.status === 'active' ? 'bg-emerald-500/20 text-emerald-400' :
+                          site.status === 'inactive' ? 'bg-red-500/20 text-red-400' :
+                          site.status === 'maintenance' ? 'bg-amber-500/20 text-amber-400' :
+                          'bg-blue-500/20 text-blue-400'
+                        )}>
+                          {site.status === 'active' ? '运行' :
+                           site.status === 'inactive' ? '停用' :
+                           site.status === 'maintenance' ? '维护' : '规划'}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* 地名搜索结果下拉 */}
-          {searchType === 'place' && showPlaceDropdown && placeResults.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-gis-900 border border-gis-700 rounded-md shadow-xl z-50 max-h-64 overflow-y-auto">
+          {searchType === 'place' && showDropdown && placeResults.length > 0 && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-gis-900 border border-gis-700 rounded-md shadow-xl z-dropdown max-h-64 overflow-y-auto">
               {placeResults.map((result) => (
                 <button
                   key={result.place_id}

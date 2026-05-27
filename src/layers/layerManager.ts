@@ -69,8 +69,9 @@ function siteHasTech(site: Site, tech: string): boolean {
  */
 export function distributeSitesToLayers(sites: Site[], layers: GisLayer[]): GisLayer[] {
   return layers.map((layer) => {
-    if (!layer.techFilter) return layer;
-    const matched = sites.filter((site) => siteHasTech(site, layer.techFilter));
+    const techFilter = layer.techFilter;
+    if (!techFilter) return layer;
+    const matched = sites.filter((site) => siteHasTech(site, techFilter));
     // 去重：避免同一站点被重复添加
     const existingIds = new Set(layer.data.map((s) => s.id));
     const newSites = matched.filter((s) => !existingIds.has(s.id));

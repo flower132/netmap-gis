@@ -9,7 +9,7 @@ import { SiteList } from '@/components/ui/SiteList';
 import { LayerPanel } from '@/components/layers/LayerPanel';
 import { exportStationsToCSV, downloadCSV } from '@/services/stationService';
 import { exportSitesToExcel, downloadExcel } from '@/services/excelImportService';
-import { getAllSitesFromLayers, computeLayerStats } from '@/layers/layerManager';
+import { getAllSitesFromLayers } from '@/layers/layerManager';
 
 /**
  * 左侧边栏组件（桌面端）
@@ -22,7 +22,6 @@ export function Sidebar() {
 
   const gisLayers = useAppStore((state) => state.gisLayers);
   const stations = useAppStore((state) => state.stations);
-  const sites = useAppStore((state) => state.sites);
   const importErrors = useAppStore((state) => state.importErrors);
   const importStats = useAppStore((state) => state.importStats);
   const isImporting = useAppStore((state) => state.isImporting);
@@ -32,7 +31,6 @@ export function Sidebar() {
   const flyTo = useMapStore((state) => state.flyTo);
 
   const allSites = useMemo(() => getAllSitesFromLayers(gisLayers), [gisLayers]);
-  const layerStats = useMemo(() => computeLayerStats(gisLayers), [gisLayers]);
 
   const hasSiteData = allSites.length > 0;
   const hasAnyData = stations.length > 0 || allSites.length > 0;

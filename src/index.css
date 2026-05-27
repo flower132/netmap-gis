@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+/* 使用系统字体栈，避免依赖 Google Fonts（国内访问不稳定） */
+/* 如需网络字体，建议替换为fonts.loli.net等国内镜像或本地字体文件 */
 
 @tailwind base;
 @tailwind components;

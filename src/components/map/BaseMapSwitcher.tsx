@@ -36,7 +36,7 @@ export function BaseMapSwitcher() {
   const maps = getAllBaseMaps();
 
   return (
-    <div ref={ref} className="absolute bottom-6 left-6 z-[1000]">
+    <div ref={ref} className="absolute bottom-6 left-6 z-map-overlay">
       <button
         className={cn(
           'w-10 h-10 rounded-lg flex items-center justify-center shadow-lg transition-all',

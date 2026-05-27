@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { Eye, EyeOff, Layers } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import type { LayerStats } from '@/layers/layerTypes';
 import { cn } from '@/utils/cn';
 

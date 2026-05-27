@@ -36,6 +36,16 @@ export default {
       screens: {
         xs: '480px',
       },
+      zIndex: {
+        map: '0',
+        'map-overlay': '10',
+        sidebar: '20',
+        header: '30',
+        drawer: '40',
+        'drawer-panel': '50',
+        dropdown: '60',
+        modal: '70',
+      },
     },
   },
   plugins: [],

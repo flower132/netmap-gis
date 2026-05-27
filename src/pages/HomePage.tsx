@@ -26,13 +26,13 @@ export function HomePage() {
     allSites.filter((s) => s.status === 'maintenance').length;
 
   return (
-    <div className="h-full flex flex-col bg-gis-950 overflow-hidden">
+    <div className="h-full flex flex-col bg-gis-950">
       <Header />
 
-      <div className="flex-1 flex overflow-hidden relative">
+      <div className="flex-1 flex relative">
         {/* 桌面端侧边栏 */}
         {!isMobile && (
-          <aside className="w-80 bg-gis-900 border-r border-gis-700 flex flex-col shrink-0">
+          <aside className="w-80 bg-gis-900 border-r border-gis-700 flex flex-col shrink-0 z-sidebar relative overflow-y-auto">
             <Sidebar />
           </aside>
         )}
@@ -45,12 +45,12 @@ export function HomePage() {
         )}
 
         {/* 主地图区域 */}
-        <main className="flex-1 relative">
+        <main className="flex-1 relative z-map overflow-hidden">
           <MapView />
 
           {/* 移动端浮动数据概览 */}
           {isMobile && (stations.length > 0 || allSites.length > 0) && (
-            <div className="absolute top-4 left-4 right-16 z-[1000] flex gap-2 overflow-x-auto pointer-events-none">
+            <div className="absolute top-4 left-4 right-16 z-map-overlay flex gap-2 overflow-x-auto pointer-events-none">
               <div className="glass-panel px-3 py-1.5 flex items-center gap-2 shrink-0">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                 <span className="text-[10px] text-gis-200 font-mono">

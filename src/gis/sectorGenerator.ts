@@ -8,11 +8,6 @@
  */
 
 /**
- * 地球赤道半径（米）
- */
-const EARTH_RADIUS = 6378137;
-
-/**
  * 一度纬度对应的米数（近似）
  */
 const METERS_PER_DEGREE_LAT = 111320;
@@ -75,21 +70,27 @@ export function generateSectorPolygon(
   radius = 300,
   steps = 16
 ): [number, number][] {
-  const halfBeam = beamwidth / 2;
-  const startAzimuth = azimuth - halfBeam;
-  const endAzimuth = azimuth + halfBeam;
+  // 强制数值转换，防止字符串或异常值导致坐标计算错误
+  const centerLat = Number(lat);
+  const centerLng = Number(lng);
+  const centerAzimuth = Number(azimuth) || 0;
 
-  const coords: [number, number][] = [[lat, lng]];
+  const halfBeam = beamwidth / 2;
+  const startAzimuth = centerAzimuth - halfBeam;
+  const endAzimuth = centerAzimuth + halfBeam;
+
+  // 统一 anchor point：所有扇区必须从同一点出发，确保同心
+  const coords: [number, number][] = [[centerLat, centerLng]];
 
   for (let i = 0; i <= steps; i++) {
     const t = i / steps;
     const a = startAzimuth + (endAzimuth - startAzimuth) * t;
     const mathRad = azimuthToMathRad(a);
-    coords.push(pointAtDistance(lat, lng, radius, mathRad));
+    coords.push(pointAtDistance(centerLat, centerLng, radius, mathRad));
   }
 
   // 闭合 polygon
-  coords.push([lat, lng]);
+  coords.push([centerLat, centerLng]);
   return coords;
 }
 

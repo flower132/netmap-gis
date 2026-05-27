@@ -34,10 +34,12 @@ function renderSectorFields(sector: Sector) {
 /**
  * 专业扇区 Polygon 组件
  * 使用 Leaflet Polygon 渲染真正的扇形覆盖区域
+ * 所有扇区基于统一 anchor point，确保同心显示
  */
 export function SectorPolygon({ sector, siteName, siteLat, siteLng, isHighlighted }: SectorPolygonProps) {
   const positions = useMemo(() => {
     const azimuth = sector.azimuth ?? 0;
+    // generateSectorPolygon 内部已强制 Number 转换，确保坐标计算正确
     return generateSectorPolygon(siteLat, siteLng, azimuth, 65, 300, 16);
   }, [siteLat, siteLng, sector.azimuth]);
 

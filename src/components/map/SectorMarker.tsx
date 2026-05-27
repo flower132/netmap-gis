@@ -20,15 +20,18 @@ function computeSectorPosition(
   siteLng: number,
   azimuth?: number
 ): [number, number] {
-  if (azimuth === undefined || isNaN(azimuth)) {
-    return [siteLat, siteLng];
+  // 强制数值转换，防止字符串或异常值导致坐标偏移错误
+  const lat = Number(siteLat);
+  const lng = Number(siteLng);
+  if (azimuth === undefined || isNaN(Number(azimuth))) {
+    return [lat, lng];
   }
   // 偏移距离约 25-30 米
   const offsetDistance = 0.00028;
-  const rad = (azimuth * Math.PI) / 180;
+  const rad = (Number(azimuth) * Math.PI) / 180;
   const latOffset = offsetDistance * Math.cos(rad);
-  const lngOffset = (offsetDistance * Math.sin(rad)) / Math.cos((siteLat * Math.PI) / 180);
-  return [siteLat + latOffset, siteLng + lngOffset];
+  const lngOffset = (offsetDistance * Math.sin(rad)) / Math.cos((lat * Math.PI) / 180);
+  return [lat + latOffset, lng + lngOffset];
 }
 
 /**

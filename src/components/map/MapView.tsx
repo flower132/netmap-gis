@@ -104,11 +104,14 @@ export function MapView() {
         )}
       </MapContainer>
 
-      {/* 底图切换器 */}
-      <BaseMapSwitcher />
+      {/* 浮动 UI 遮罩层：确保按钮可点击，不被 Leaflet 容器拦截 */}
+      <div className="absolute inset-0 pointer-events-none z-map-overlay">
+        <div className="pointer-events-auto">
+          <BaseMapSwitcher />
+        </div>
 
-      {/* 地图角落统计面板 */}
-      <div className="absolute bottom-6 right-6 glass-panel px-3 py-2 z-[1000] pointer-events-none hidden md:block">
+        {/* 地图角落统计面板 */}
+        <div className="absolute bottom-6 right-6 glass-panel px-3 py-2 pointer-events-none hidden md:block">
         <div className="text-xs text-gis-300 space-y-1">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500" />
@@ -127,6 +130,7 @@ export function MapView() {
             <span>规划中: {planningCount}</span>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { useMap } from 'react-leaflet';
+import { useMemo, useState, useEffect } from 'react';
+import { useMap, useMapEvent } from 'react-leaflet';
 import { SectorPolygon } from './SectorPolygon';
 import { useAppStore } from '@/store/useAppStore';
 import type { Site } from '@/types';
@@ -16,8 +16,18 @@ interface SitePolygonsProps {
  */
 export function SitePolygons({ sites, minZoom = 16 }: SitePolygonsProps) {
   const map = useMap();
-  const zoom = map.getZoom();
+  const [zoom, setZoom] = useState(map.getZoom());
   const highlightedSiteId = useAppStore((state) => state.highlightedSiteId);
+
+  // 监听地图缩放事件，确保 zoom 变化时立即重新计算渲染条件
+  useMapEvent('zoomend', () => {
+    setZoom(map.getZoom());
+  });
+
+  // 数据变化或组件挂载时立即同步当前 zoom，避免初始状态不一致
+  useEffect(() => {
+    setZoom(map.getZoom());
+  }, [map, sites]);
 
   const shouldRender = zoom >= minZoom;
 
