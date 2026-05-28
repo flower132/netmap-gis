@@ -32,7 +32,7 @@ export function MobileDrawer({ children }: MobileDrawerProps) {
       {/* Backdrop */}
       <div
         className={cn(
-          'fixed inset-0 bg-black/60 backdrop-blur-sm z-drawer transition-opacity md:hidden',
+          'fixed inset-0 bg-black/60 backdrop-blur-sm z-drawer transition-opacity lg:hidden',
           isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
         )}
         onClick={() => toggleMobileDrawer(false)}
@@ -44,7 +44,7 @@ export function MobileDrawer({ children }: MobileDrawerProps) {
           'fixed top-0 left-0 h-full w-[85vw] max-w-[360px] z-drawer-panel',
           'bg-gis-900 border-r border-gis-700',
           'flex flex-col shadow-2xl',
-          'transition-transform duration-300 ease-out md:hidden',
+          'transition-transform duration-300 ease-out lg:hidden',
           isOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >

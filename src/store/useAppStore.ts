@@ -44,6 +44,7 @@ interface AppState {
 
   // 移动端
   isMobileDrawerOpen: boolean;
+  mobileActiveTab: 'map' | 'layers' | 'data' | 'menu';
 
   // 多图层系统（预留扩展）
   activeLayers: MapLayerConfig[];
@@ -74,6 +75,7 @@ interface AppState {
 
   setBaseMap: (map: BaseMapType) => void;
   toggleMobileDrawer: (open?: boolean) => void;
+  setMobileActiveTab: (tab: 'map' | 'layers' | 'data' | 'menu') => void;
 
   // 预留：图层控制
   toggleLayer: (layerType: LayerType) => void;
@@ -101,6 +103,7 @@ export const useAppStore = create<AppState>()(
       highlightedSiteId: null,
       baseMap: DEFAULT_BASE_MAP,
       isMobileDrawerOpen: false,
+      mobileActiveTab: 'map',
       activeLayers: [
         { id: 'station-layer', type: 'station', name: '基站标记', visible: true, opacity: 1 },
         { id: 'heatmap-layer', type: 'heatmap', name: '热力图', visible: false, opacity: 0.7 },
@@ -316,6 +319,13 @@ export const useAppStore = create<AppState>()(
       toggleMobileDrawer: (open) =>
         set((state) => ({
           isMobileDrawerOpen: open !== undefined ? open : !state.isMobileDrawerOpen,
+        })),
+
+      // 移动端底部导航 active tab
+      setMobileActiveTab: (tab) =>
+        set((state) => ({
+          mobileActiveTab: tab,
+          isMobileDrawerOpen: tab === 'map' ? false : state.isMobileDrawerOpen,
         })),
 
       // 预留：图层控制

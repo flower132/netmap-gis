@@ -49,3 +49,11 @@ export function useIsMobile(): boolean {
 export function useIsTablet(): boolean {
   return useMediaQuery('(min-width: 768px) and (max-width: 1024px)');
 }
+
+/**
+ * 检测是否为桌面端导航（>= 1024px）
+ * 用于响应式导航布局切换（侧边栏 vs 底部导航）
+ */
+export function useIsDesktopNav(): boolean {
+  return useMediaQuery('(min-width: 1024px)');
+}

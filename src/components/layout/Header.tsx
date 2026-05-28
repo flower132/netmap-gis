@@ -44,7 +44,7 @@ export function Header() {
         {/* 移动端菜单按钮 */}
         <button
           className={cn(
-            'md:hidden p-2 -ml-2 rounded-md transition-colors',
+            'lg:hidden p-2 -ml-2 rounded-md transition-colors',
             isMobileDrawerOpen
               ? 'bg-blue-600/20 text-blue-400'
               : 'text-gis-300 hover:text-gis-100 hover:bg-gis-800'

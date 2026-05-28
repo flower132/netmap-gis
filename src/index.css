@@ -223,6 +223,16 @@
   }
 }
 
+/* Safe area for bottom navigation */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Bottom navigation height variable */
+:root {
+  --bottom-nav-height: calc(64px + env(safe-area-inset-bottom, 0px));
+}
+
 /* Touch-friendly tap targets */
 button,
 .leaflet-control-zoom a,

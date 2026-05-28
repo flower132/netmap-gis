@@ -131,3 +131,15 @@
 2026-05-27 07:10:20 | Edit | /Users/temp/Vibe_Project/GIS_APP/src/gis/sectorGenerator.ts
 2026-05-27 07:10:24 | Edit | /Users/temp/Vibe_Project/GIS_APP/src/layers/layerManager.ts
 2026-05-27 07:10:37 | Edit | /Users/temp/Vibe_Project/GIS_APP/src/components/layout/Sidebar.tsx
+2026-05-28 07:08:59 | Edit | /Users/temp/Vibe_Project/GIS_APP/src/hooks/useMediaQuery.ts
+2026-05-28 07:09:04 | Edit | /Users/temp/Vibe_Project/GIS_APP/src/store/useAppStore.ts
+2026-05-28 07:09:10 | Edit | /Users/temp/Vibe_Project/GIS_APP/src/store/useAppStore.ts
+2026-05-28 07:09:16 | Edit | /Users/temp/Vibe_Project/GIS_APP/src/store/useAppStore.ts
+2026-05-28 07:09:24 | Edit | /Users/temp/Vibe_Project/GIS_APP/src/store/useAppStore.ts
+2026-05-28 07:09:31 | Edit | /Users/temp/Vibe_Project/GIS_APP/src/components/layout/Header.tsx
+2026-05-28 07:09:36 | Edit | /Users/temp/Vibe_Project/GIS_APP/src/components/layout/MobileDrawer.tsx
+2026-05-28 07:09:44 | Edit | /Users/temp/Vibe_Project/GIS_APP/src/components/layout/MobileDrawer.tsx
+2026-05-28 07:10:19 | Write | /Users/temp/Vibe_Project/GIS_APP/src/components/layout/BottomNav.tsx
+2026-05-28 07:10:29 | Edit | /Users/temp/Vibe_Project/GIS_APP/src/index.css
+2026-05-28 07:16:05 | Write | /Users/temp/Vibe_Project/GIS_APP/src/pages/HomePage.tsx
+2026-05-28 07:16:51 | Edit | /Users/temp/Vibe_Project/GIS_APP/src/components/layout/BottomNav.tsx
