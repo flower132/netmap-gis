@@ -12,7 +12,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'pwa-192x192.png', 'pwa-512x512.png', 'sample-stations.csv'],
+      includeAssets: ['favicon.svg', 'pwa-192x192.png', 'pwa-512x512.png', 'apple-touch-icon.png', 'sample-stations.csv'],
       manifest: {
         name: 'NetMap GIS - 基站管理系统',
         short_name: 'NetMap GIS',
@@ -22,7 +22,7 @@ export default defineConfig({
         display: 'standalone',
         scope: '.',
         start_url: '.',
-        orientation: 'portrait',
+        orientation: 'any',
         icons: [
           {
             src: 'pwa-192x192.png',
