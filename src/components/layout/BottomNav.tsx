@@ -3,10 +3,8 @@ import { useAppStore } from '@/store/useAppStore';
 import type { PanelType } from '@/store/useAppStore';
 import { cn } from '@/utils/cn';
 
-type NavId = PanelType | 'map';
-
 interface NavItem {
-  id: NavId;
+  id: PanelType;
   label: string;
   icon: typeof Map;
 }
@@ -15,7 +13,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'menu', label: '菜单', icon: Menu },
   { id: 'layerControl', label: '图层', icon: Layers },
   { id: 'dataPanel', label: '数据', icon: List },
-  { id: 'map', label: '地图', icon: Map },
+  { id: 'mapSettings', label: '地图', icon: Map },
 ];
 
 /**
@@ -27,14 +25,9 @@ export function BottomNav() {
   const activePanel = useAppStore((state) => state.activePanel);
   const setActivePanel = useAppStore((state) => state.setActivePanel);
 
-  const handleTabClick = (tab: NavId) => {
-    if (tab === 'map') {
-      // 地图按钮：关闭所有面板
-      setActivePanel(null);
-    } else {
-      // 其他按钮：切换对应面板（已打开则关闭）
-      setActivePanel(tab);
-    }
+  const handleTabClick = (tab: PanelType) => {
+    // 切换对应面板（已打开则关闭）
+    setActivePanel(tab);
   };
 
   return (
