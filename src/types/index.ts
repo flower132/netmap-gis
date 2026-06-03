@@ -18,6 +18,8 @@ export interface Sector {
   tech?: string; // '4G' | 'LTE' | '5G' | 'NR' | etc
   tac?: number;
   height?: number;
+  /** 基站号/站点编号（可选） */
+  siteId?: string;
   // 扩展字段（动态）
   [key: string]: unknown;
 }
@@ -36,6 +38,10 @@ export interface Site {
   // 兼容旧字段
   operator?: string;
   address?: string;
+  /** 区域/区县（解析或识别得到） */
+  region?: string;
+  /** 基站号/站点编号 */
+  siteId?: string;
   // 扩展字段
   [key: string]: unknown;
 }
@@ -74,7 +80,7 @@ export interface MapViewState {
 /**
  * 搜索查询类型
  */
-export type SearchType = 'name' | 'coordinates' | 'place';
+export type SearchType = 'name' | 'coordinates' | 'place' | 'region' | 'siteId';
 
 /**
  * 搜索参数
@@ -217,4 +223,33 @@ export interface FlyToTarget {
   coords: [number, number];
   zoom: number;
   highlightId?: string | null;
+}
+
+/**
+ * 区域统计缓存
+ * 按区县统计 4G/5G 基站与扇区数量
+ */
+export interface RegionStats {
+  region: string;
+  sites4G: number;
+  sectors4G: number;
+  sites5G: number;
+  sectors5G: number;
+  totalSites: number;
+  totalSectors: number;
+}
+
+/**
+ * 站点搜索索引
+ * 用于加速基站号、区域等搜索
+ */
+export interface SiteSearchIndex {
+  id: string;
+  siteName: string;
+  siteId: string | null;
+  region: string | null;
+  techs: string[];
+  latitude: number;
+  longitude: number;
+  status: StationStatus;
 }

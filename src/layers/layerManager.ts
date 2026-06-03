@@ -183,7 +183,7 @@ export function clearAllLayerData(layers: GisLayer[]): GisLayer[] {
 }
 
 /**
- * 搜索所有图层中的站点（按名称匹配）
+ * 搜索所有图层中的站点（按名称或基站号匹配）
  */
 export function searchSitesInLayers(layers: GisLayer[], query: string): Site[] {
   const q = query.trim().toLowerCase();
@@ -193,7 +193,9 @@ export function searchSitesInLayers(layers: GisLayer[], query: string): Site[] {
   for (const layer of layers) {
     for (const site of layer.data) {
       if (seen.has(site.id)) continue;
-      if (site.siteName.toLowerCase().includes(q)) {
+      const nameMatch = site.siteName.toLowerCase().includes(q);
+      const siteIdMatch = site.siteId?.toLowerCase().includes(q);
+      if (nameMatch || siteIdMatch) {
         seen.add(site.id);
         results.push(site);
       }

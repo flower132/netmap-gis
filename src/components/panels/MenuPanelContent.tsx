@@ -1,5 +1,5 @@
-import { useRef, useCallback, useMemo } from 'react';
-import { Upload, Trash2, FileDown, AlertCircle, Navigation, FileSpreadsheet } from 'lucide-react';
+import { useRef, useCallback, useMemo, useState } from 'react';
+import { Upload, Trash2, FileDown, AlertCircle, Navigation, FileSpreadsheet, BarChart3, ChevronRight } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { useMapStore } from '@/store/useMapStore';
 import { Button } from '@/components/ui/Button';
@@ -8,7 +8,8 @@ import { StationList } from '@/components/ui/StationList';
 import { SiteList } from '@/components/ui/SiteList';
 import { exportStationsToCSV, downloadCSV } from '@/services/stationService';
 import { exportSitesToExcel, downloadExcel } from '@/services/excelImportService';
-import { getAllSitesFromLayers } from '@/layers/layerManager';
+import { searchSitesByRegion, computeBounds, getBoundsCenter, getBoundsZoom } from '@/services/searchService';
+import { cn } from '@/utils/cn';
 
 /**
  * 菜单面板内容组件
@@ -19,8 +20,10 @@ export function MenuPanelContent() {
   const csvInputRef = useRef<HTMLInputElement>(null);
   const excelInputRef = useRef<HTMLInputElement>(null);
 
-  const gisLayers = useAppStore((state) => state.gisLayers);
   const stations = useAppStore((state) => state.stations);
+  const allSites = useAppStore((state) => state.sites);
+  const regionStats = useAppStore((state) => state.regionStats);
+  const siteIndex = useAppStore((state) => state.siteIndex);
   const importErrors = useAppStore((state) => state.importErrors);
   const importStats = useAppStore((state) => state.importStats);
   const isImporting = useAppStore((state) => state.isImporting);
@@ -30,7 +33,7 @@ export function MenuPanelContent() {
   const closePanel = useAppStore((state) => state.closePanel);
   const flyTo = useMapStore((state) => state.flyTo);
 
-  const allSites = useMemo(() => getAllSitesFromLayers(gisLayers), [gisLayers]);
+  const [showRegionStats, setShowRegionStats] = useState(false);
 
   const hasSiteData = allSites.length > 0;
   const hasAnyData = stations.length > 0 || allSites.length > 0;
@@ -51,6 +54,11 @@ export function MenuPanelContent() {
       allSites.filter((s) => s.status === 'planning').length;
     return { total: totalItems, active, inactive, maintenance, planning };
   }, [stations, allSites, totalItems]);
+
+  // 区域统计中总数大于0的区域
+  const activeRegionStats = useMemo(() => {
+    return regionStats.filter((r) => r.totalSites > 0);
+  }, [regionStats]);
 
   const handleImportCSVClick = useCallback(() => {
     csvInputRef.current?.click();
@@ -91,6 +99,16 @@ export function MenuPanelContent() {
       downloadCSV(csv, `stations_${Date.now()}.csv`);
     }
   }, [stations, allSites, hasSiteData]);
+
+  const handleRegionClick = useCallback((region: string) => {
+    const matched = searchSitesByRegion(siteIndex, region);
+    const matchedSites = allSites.filter((s) => matched.some((m) => m.id === s.id));
+    if (matchedSites.length > 0) {
+      const bounds = computeBounds(matchedSites);
+      const center = getBoundsCenter(bounds || [[0, 0], [0, 0]]);
+      flyTo(center, getBoundsZoom(bounds || [[0, 0], [0, 0]]));
+    }
+  }, [siteIndex, allSites, flyTo]);
 
   return (
     <div className="flex flex-col h-full w-full">
@@ -181,6 +199,69 @@ export function MenuPanelContent() {
             <div className="text-lg font-semibold text-blue-400">{stats.planning}</div>
           </div>
         </div>
+      </div>
+
+      {/* 区域统计折叠面板 */}
+      <div className="shrink-0 border-b border-gis-700/50">
+        <button
+          className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-gis-800/40 transition-colors"
+          onClick={() => setShowRegionStats(!showRegionStats)}
+        >
+          <div className="flex items-center gap-2">
+            <BarChart3 className="w-4 h-4 text-blue-400" />
+            <span className="text-xs font-medium text-gis-100">区域统计</span>
+            <span className="text-[10px] text-gis-500">
+              ({activeRegionStats.length} 个区域有数据)
+            </span>
+          </div>
+          <ChevronRight
+            className={cn(
+              'w-4 h-4 text-gis-400 transition-transform',
+              showRegionStats ? 'rotate-90' : ''
+            )}
+          />
+        </button>
+
+        {showRegionStats && (
+          <div className="px-3 pb-3 max-h-52 overflow-y-auto">
+            {activeRegionStats.length === 0 ? (
+              <div className="text-center py-3 text-xs text-gis-500">
+                暂无区域统计数据
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                {activeRegionStats.map((stat) => (
+                  <button
+                    key={stat.region}
+                    className="w-full text-left px-2.5 py-2 rounded-md bg-gis-800/40 hover:bg-gis-700/60 border border-transparent hover:border-gis-600/30 transition-all"
+                    onClick={() => handleRegionClick(stat.region)}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-medium text-gis-100">{stat.region}</span>
+                      <span className="text-[10px] text-gis-400">
+                        基站 {stat.totalSites} / 扇区 {stat.totalSectors}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-4 gap-1 text-[10px]">
+                      <div className="text-center bg-blue-500/10 rounded py-0.5">
+                        <span className="text-blue-400">4G基 {stat.sites4G}</span>
+                      </div>
+                      <div className="text-center bg-blue-500/10 rounded py-0.5">
+                        <span className="text-blue-400">4G扇 {stat.sectors4G}</span>
+                      </div>
+                      <div className="text-center bg-red-500/10 rounded py-0.5">
+                        <span className="text-red-400">5G基 {stat.sites5G}</span>
+                      </div>
+                      <div className="text-center bg-red-500/10 rounded py-0.5">
+                        <span className="text-red-400">5G扇 {stat.sectors5G}</span>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* 导入统计 */}

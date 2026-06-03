@@ -1,8 +1,8 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
-import type { Site, GisLayer, MapLayerConfig } from '@/types';
+import type { Site, GisLayer, MapLayerConfig, RegionStats, SiteSearchIndex } from '@/types';
 
 const DB_NAME = 'gis-app-db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 interface GisAppDB extends DBSchema {
   sites: {
@@ -28,6 +28,14 @@ interface GisAppDB extends DBSchema {
       activeLayers: MapLayerConfig[];
     };
   };
+  regionStats: {
+    key: string;
+    value: RegionStats;
+  };
+  siteIndex: {
+    key: string;
+    value: SiteSearchIndex;
+  };
 }
 
 let dbInstance: IDBPDatabase<GisAppDB> | null = null;
@@ -35,15 +43,25 @@ let dbInstance: IDBPDatabase<GisAppDB> | null = null;
 async function getDB(): Promise<IDBPDatabase<GisAppDB>> {
   if (dbInstance) return dbInstance;
   dbInstance = await openDB<GisAppDB>(DB_NAME, DB_VERSION, {
-    upgrade(db) {
-      if (!db.objectStoreNames.contains('sites')) {
-        db.createObjectStore('sites', { keyPath: 'id' });
+    upgrade(db, oldVersion) {
+      if (oldVersion < 1) {
+        if (!db.objectStoreNames.contains('sites')) {
+          db.createObjectStore('sites', { keyPath: 'id' });
+        }
+        if (!db.objectStoreNames.contains('layerMeta')) {
+          db.createObjectStore('layerMeta', { keyPath: 'id' });
+        }
+        if (!db.objectStoreNames.contains('appConfig')) {
+          db.createObjectStore('appConfig');
+        }
       }
-      if (!db.objectStoreNames.contains('layerMeta')) {
-        db.createObjectStore('layerMeta', { keyPath: 'id' });
-      }
-      if (!db.objectStoreNames.contains('appConfig')) {
-        db.createObjectStore('appConfig');
+      if (oldVersion < 2) {
+        if (!db.objectStoreNames.contains('regionStats')) {
+          db.createObjectStore('regionStats', { keyPath: 'region' });
+        }
+        if (!db.objectStoreNames.contains('siteIndex')) {
+          db.createObjectStore('siteIndex', { keyPath: 'id' });
+        }
       }
     },
   });
@@ -130,6 +148,50 @@ export async function loadAppState(): Promise<
 }
 
 /**
+ * 保存区域统计缓存到 IndexedDB
+ */
+export async function saveRegionStats(stats: RegionStats[]): Promise<void> {
+  const db = await getDB();
+  const tx = db.transaction('regionStats', 'readwrite');
+  const store = tx.objectStore('regionStats');
+  await store.clear();
+  for (const stat of stats) {
+    store.put(stat);
+  }
+  await tx.done;
+}
+
+/**
+ * 从 IndexedDB 加载区域统计缓存
+ */
+export async function loadRegionStats(): Promise<RegionStats[]> {
+  const db = await getDB();
+  return db.getAll('regionStats');
+}
+
+/**
+ * 保存站点搜索索引到 IndexedDB
+ */
+export async function saveSiteIndex(index: SiteSearchIndex[]): Promise<void> {
+  const db = await getDB();
+  const tx = db.transaction('siteIndex', 'readwrite');
+  const store = tx.objectStore('siteIndex');
+  await store.clear();
+  for (const item of index) {
+    store.put(item);
+  }
+  await tx.done;
+}
+
+/**
+ * 从 IndexedDB 加载站点搜索索引
+ */
+export async function loadSiteIndex(): Promise<SiteSearchIndex[]> {
+  const db = await getDB();
+  return db.getAll('siteIndex');
+}
+
+/**
  * 清空所有 IndexedDB 数据
  */
 export async function clearAllDBData(): Promise<void> {
@@ -137,6 +199,8 @@ export async function clearAllDBData(): Promise<void> {
   await db.clear('sites');
   await db.clear('layerMeta');
   await db.clear('appConfig');
+  await db.clear('regionStats');
+  await db.clear('siteIndex');
 }
 
 /**

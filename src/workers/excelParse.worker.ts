@@ -118,6 +118,9 @@ function parseSectorFromRow(row: Record<string, unknown>, mapping: FieldMappingR
     if (cellId !== undefined) sector.sectorId = cellId;
   }
 
+  const siteId = parseString(extractField(row, mapping, 'siteId'));
+  if (siteId !== undefined) sector.siteId = siteId;
+
   return sector;
 }
 
@@ -151,6 +154,14 @@ function aggregateSites(rows: ParsedRow[], mapping: FieldMappingResult['mapping'
       return sector;
     });
 
+    // 从首行提取区域和基站号，优先取 Site 级别字段
+    const firstRow = group.rows[0]?.raw || {};
+    const region = parseString(extractField(firstRow, mapping, 'region'));
+    const siteId = parseString(extractField(firstRow, mapping, 'siteId'));
+
+    // 如果首行没有 siteId，尝试从扇区中合并（取第一个有值的）
+    const siteIdFromSector = sectors.find((s) => s.siteId)?.siteId;
+
     sites.push({
       id: `station_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       siteName: group.siteName,
@@ -158,6 +169,8 @@ function aggregateSites(rows: ParsedRow[], mapping: FieldMappingResult['mapping'
       longitude: group.lng,
       status: 'active',
       sectors,
+      ...(region ? { region } : {}),
+      ...(siteId ? { siteId } : siteIdFromSector ? { siteId: siteIdFromSector } : {}),
     });
   }
 

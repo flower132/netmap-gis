@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
-import { X, ChevronUp, ChevronDown, Radio, MapPin, Activity, Wrench, Clock } from 'lucide-react';
+import { X, ChevronUp, ChevronDown, Radio, MapPin, Activity, Wrench, Clock, BarChart3, ChevronRight } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { useMapStore } from '@/store/useMapStore';
-import { getAllSitesFromLayers } from '@/layers/layerManager';
 import { cn } from '@/utils/cn';
 import { SEARCH_FLY_ZOOM } from '@/utils/constants';
 import type { Site } from '@/types';
+import { searchSitesByRegion, computeBounds, getBoundsCenter, getBoundsZoom } from '@/services/searchService';
 
 /**
  * 数据统计 Bottom Sheet
@@ -15,14 +15,16 @@ import type { Site } from '@/types';
 export function DataBottomSheet() {
   const activePanel = useAppStore((state) => state.activePanel);
   const closePanel = useAppStore((state) => state.closePanel);
-  const gisLayers = useAppStore((state) => state.gisLayers);
   const stations = useAppStore((state) => state.stations);
+  const allSites = useAppStore((state) => state.sites);
+  const regionStats = useAppStore((state) => state.regionStats);
+  const siteIndex = useAppStore((state) => state.siteIndex);
   const setSelectedSite = useAppStore((state) => state.setSelectedSite);
   const flyTo = useMapStore((state) => state.flyTo);
 
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showRegionStats, setShowRegionStats] = useState(false);
 
-  const allSites = useMemo(() => getAllSitesFromLayers(gisLayers), [gisLayers]);
   const isOpen = activePanel === 'dataPanel';
 
   const stats = useMemo(() => {
@@ -38,9 +40,25 @@ export function DataBottomSheet() {
     return counts;
   }, [stations, allSites]);
 
+  // 区域统计中总数大于0的区域
+  const activeRegionStats = useMemo(() => {
+    return regionStats.filter((r) => r.totalSites > 0);
+  }, [regionStats]);
+
   const handleSiteClick = (site: Site) => {
     setSelectedSite(site);
     flyTo([site.latitude, site.longitude], SEARCH_FLY_ZOOM, site.id);
+    closePanel();
+  };
+
+  const handleRegionClick = (region: string) => {
+    const matched = searchSitesByRegion(siteIndex, region);
+    const matchedSites = allSites.filter((s) => matched.some((m) => m.id === s.id));
+    if (matchedSites.length > 0) {
+      const bounds = computeBounds(matchedSites);
+      const center = getBoundsCenter(bounds || [[0, 0], [0, 0]]);
+      flyTo(center, getBoundsZoom(bounds || [[0, 0], [0, 0]]));
+    }
     closePanel();
   };
 
@@ -121,8 +139,69 @@ export function DataBottomSheet() {
           </div>
         </div>
 
+        {/* 区域统计折叠面板 */}
+        <div className="shrink-0 border-b border-gis-700/50">
+          <button
+            className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-gis-800/40 transition-colors"
+            onClick={() => setShowRegionStats(!showRegionStats)}
+          >
+            <div className="flex items-center gap-2">
+              <BarChart3 className="w-4 h-4 text-blue-400" />
+              <span className="text-xs font-medium text-gis-100">区域统计</span>
+              <span className="text-[10px] text-gis-500">({activeRegionStats.length} 个区域有数据)</span>
+            </div>
+            <ChevronRight
+              className={cn(
+                'w-4 h-4 text-gis-400 transition-transform',
+                showRegionStats ? 'rotate-90' : ''
+              )}
+            />
+          </button>
+
+          {showRegionStats && (
+            <div className="px-3 pb-3 max-h-48 overflow-y-auto">
+              {activeRegionStats.length === 0 ? (
+                <div className="text-center py-3 text-xs text-gis-500">
+                  暂无区域统计数据
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  {activeRegionStats.map((stat) => (
+                    <button
+                      key={stat.region}
+                      className="w-full text-left px-2.5 py-2 rounded-md bg-gis-800/40 hover:bg-gis-700/60 border border-transparent hover:border-gis-600/30 transition-all"
+                      onClick={() => handleRegionClick(stat.region)}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-medium text-gis-100">{stat.region}</span>
+                        <span className="text-[10px] text-gis-400">
+                          基站 {stat.totalSites} / 扇区 {stat.totalSectors}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-4 gap-1 text-[10px]">
+                        <div className="text-center bg-blue-500/10 rounded py-0.5">
+                          <span className="text-blue-400">4G基 {stat.sites4G}</span>
+                        </div>
+                        <div className="text-center bg-blue-500/10 rounded py-0.5">
+                          <span className="text-blue-400">4G扇 {stat.sectors4G}</span>
+                        </div>
+                        <div className="text-center bg-red-500/10 rounded py-0.5">
+                          <span className="text-red-400">5G基 {stat.sites5G}</span>
+                        </div>
+                        <div className="text-center bg-red-500/10 rounded py-0.5">
+                          <span className="text-red-400">5G扇 {stat.sectors5G}</span>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Site List Preview */}
-        <div className="flex-1 overflow-y-auto min-h-0 px-3 pb-4">
+        <div className="flex-1 overflow-y-auto min-h-0 px-3 pb-4 pt-2">
           <div className="text-xs font-medium text-gis-400 mb-2 flex items-center justify-between">
             <span>站点列表 ({allSites.length})</span>
           </div>
@@ -146,8 +225,10 @@ export function DataBottomSheet() {
                       {site.sectors.length} 扇区
                     </span>
                   </div>
-                  <div className="text-[10px] text-gis-400 mt-0.5">
-                    {site.latitude.toFixed(4)}, {site.longitude.toFixed(4)}
+                  <div className="text-[10px] text-gis-400 mt-0.5 flex gap-x-2">
+                    <span>{site.latitude.toFixed(4)}, {site.longitude.toFixed(4)}</span>
+                    {site.region && <span className="text-blue-400">{site.region}</span>}
+                    {site.siteId && <span className="text-emerald-400">{site.siteId}</span>}
                   </div>
                 </button>
               ))}

@@ -19,7 +19,9 @@ export type OptionalField =
   | 'sectorId'
   | 'cellId'
   | 'enodebId'
-  | 'gNBId';
+  | 'gNBId'
+  | 'region'
+  | 'siteId';
 
 /**
  * 字段映射结果
@@ -111,6 +113,44 @@ const OPTIONAL_FIELD_ALIASES: Record<OptionalField, string[]> = {
   cellId: ['CellID', 'cell_id', 'CELL_ID', '小区ID', '小区标识', 'cellid', 'CELLID', 'CellId', 'CI', 'ci'],
   enodebId: ['eNodeBID', 'enodeb_id', 'ENODEB_ID', 'eNBId', '基站ID'],
   gNBId: ['gNBID', 'gnb_id', 'GNB_ID', 'gNBId', 'gNodeBID'],
+  region: [
+    '区域',
+    '区县',
+    '区',
+    'region',
+    'REGION',
+    'Area',
+    'AREA',
+    'area',
+    '所属区域',
+    '行政区域',
+    '归属区域',
+    ' District',
+    'district',
+    'DISTRICT',
+  ],
+  siteId: [
+    '基站号',
+    '基站编号',
+    '站点编号',
+    'SITE_ID',
+    'SITEID',
+    'SiteID',
+    'site_id',
+    'siteid',
+    'ENODEBID',
+    'enodebid',
+    'eNodeBID',
+    'GNODEBID',
+    'gnodebid',
+    'gNodeBID',
+    'CELLID',
+    'cellid',
+    'CellID',
+    'cell_id',
+    'eNBId',
+    'gNBId',
+  ],
 };
 
 // ==================== 字段识别 ====================

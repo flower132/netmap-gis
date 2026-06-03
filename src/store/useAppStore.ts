@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Station, Site, SearchType, BaseMapType, MapLayerConfig, LayerType, ImportStats, GeocodeResult } from '@/types';
+import type { Station, Site, SearchType, BaseMapType, MapLayerConfig, LayerType, ImportStats, GeocodeResult, RegionStats, SiteSearchIndex } from '@/types';
 import type { GisLayer } from '@/types';
 import { importStationsFromCSV } from '@/services/stationService';
 import { importSitesFromExcel } from '@/services/excelImportService';
@@ -19,7 +19,13 @@ import {
   loadAppState,
   clearAllDBData,
   migrateFromLocalStorage,
+  saveRegionStats,
+  loadRegionStats,
+  saveSiteIndex,
+  loadSiteIndex,
 } from '@/services/dbService';
+import { computeRegionStats } from '@/services/regionService';
+import { buildSiteIndex, searchSitesBySiteId, getRegionStatsByQuery } from '@/services/searchService';
 import debounce from 'lodash.debounce';
 
 /**
@@ -60,6 +66,10 @@ interface AppState {
 
   // 多图层系统（预留扩展）
   activeLayers: MapLayerConfig[];
+
+  // 区域统计缓存（从 IndexedDB 加载，导入时更新）
+  regionStats: RegionStats[];
+  siteIndex: SiteSearchIndex[];
 
   // Actions
   setSelectedStation: (station: Station | null) => void;
@@ -135,6 +145,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     { id: 'coverage-layer', type: 'coverage', name: '覆盖图', visible: false, opacity: 0.5 },
     { id: 'kpi-layer', type: 'kpi', name: 'KPI 图层', visible: false, opacity: 0.8 },
   ],
+  regionStats: [],
+  siteIndex: [],
 
   /**
    * 从 IndexedDB 初始化应用状态
@@ -155,12 +167,19 @@ export const useAppStore = create<AppState>((set, get) => ({
         const gisLayers = distributeSitesToLayers(migrated.sites, layers);
         const allSites = getAllSitesFromLayers(gisLayers);
 
+        // 计算并缓存区域统计
+        const stats = computeRegionStats(allSites);
+        const index = buildSiteIndex(allSites);
+        await Promise.all([saveRegionStats(stats), saveSiteIndex(index)]);
+
         set({
           gisLayers,
           sites: allSites,
           stations: [],
           baseMap: migrated.baseMap as BaseMapType,
           activeLayers: migrated.activeLayers,
+          regionStats: stats,
+          siteIndex: index,
           isDBLoading: false,
         });
         return;
@@ -170,12 +189,30 @@ export const useAppStore = create<AppState>((set, get) => ({
       const state = await loadAppState();
       if (state) {
         const allSites = getAllSitesFromLayers(state.gisLayers);
+
+        // 尝试从缓存加载统计和索引
+        const [cachedStats, cachedIndex] = await Promise.all([
+          loadRegionStats(),
+          loadSiteIndex(),
+        ]);
+
+        // 如果缓存为空，重新计算
+        let stats = cachedStats;
+        let index = cachedIndex;
+        if (stats.length === 0 && allSites.length > 0) {
+          stats = computeRegionStats(allSites);
+          index = buildSiteIndex(allSites);
+          await Promise.all([saveRegionStats(stats), saveSiteIndex(index)]);
+        }
+
         set({
           gisLayers: state.gisLayers,
           sites: allSites,
           stations: [],
           baseMap: state.baseMap as BaseMapType,
           activeLayers: state.activeLayers,
+          regionStats: stats,
+          siteIndex: index,
           isDBLoading: false,
         });
       } else {
@@ -246,6 +283,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       selectedSite: null,
       searchResults: null,
       importStats: null,
+      regionStats: [],
+      siteIndex: [],
     });
     clearAllDBData().catch((e) => console.error('清空 IndexedDB 失败:', e));
   },
@@ -306,9 +345,20 @@ export const useAppStore = create<AppState>((set, get) => ({
   addSitesToLayers: (newSites) =>
     set((state) => {
       const updated = distributeSitesToLayers(newSites, state.gisLayers);
+      const allSites = getAllSitesFromLayers(updated);
+
+      // 异步更新统计缓存（不阻塞 UI）
+      const stats = computeRegionStats(allSites);
+      const index = buildSiteIndex(allSites);
+      Promise.all([saveRegionStats(stats), saveSiteIndex(index)]).catch((e) =>
+        console.error('更新统计缓存失败:', e)
+      );
+
       return {
         gisLayers: updated,
-        sites: getAllSitesFromLayers(updated),
+        sites: allSites,
+        regionStats: stats,
+        siteIndex: index,
       };
     }),
 
@@ -318,7 +368,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // 执行搜索
   executeSearch: () => {
-    const { searchQuery, searchType, gisLayers } = get();
+    const { searchQuery, searchType, gisLayers, siteIndex, regionStats } = get();
     const query = searchQuery.trim();
 
     if (!query) {
@@ -352,9 +402,29 @@ export const useAppStore = create<AppState>((set, get) => ({
       return null;
     }
 
-    const results = searchSitesInLayers(gisLayers, query);
+    // 区域搜索：返回该区域统计信息（不返回站点列表）
+    if (searchType === 'region') {
+      const stat = getRegionStatsByQuery(regionStats, query);
+      set({ searchResults: [] });
+      return stat as unknown as Station[];
+    }
+
+    let matchedSites: Site[] = [];
+
+    if (searchType === 'siteId') {
+      // 基站号搜索：优先使用 siteIndex 缓存
+      const matchedIndex = searchSitesBySiteId(siteIndex, query);
+      const matchedIds = new Set(matchedIndex.map((s) => s.id));
+      matchedSites = getAllSitesFromLayers(gisLayers).filter((s) =>
+        matchedIds.has(s.id)
+      );
+    } else {
+      // 默认站名搜索
+      matchedSites = searchSitesInLayers(gisLayers, query);
+    }
+
     const matchedStations: Station[] = [];
-    for (const site of results) {
+    for (const site of matchedSites) {
       for (const sector of site.sectors) {
         matchedStations.push({
           id: `${site.id}_${sector.id}`,
