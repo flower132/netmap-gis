@@ -21,17 +21,17 @@ export function StationList({ stations }: StationListProps) {
   const searchResults = useAppStore((state) => state.searchResults);
   const setSelectedStation = useAppStore((state) => state.setSelectedStation);
   const clearSearch = useAppStore((state) => state.clearSearch);
-  const toggleMobileDrawer = useAppStore((state) => state.toggleMobileDrawer);
+  const closePanel = useAppStore((state) => state.closePanel);
   const flyTo = useMapStore((state) => state.flyTo);
 
   const handleStationClick = useCallback(
     (station: Station) => {
       setSelectedStation(station);
       flyTo([station.latitude, station.longitude], SEARCH_FLY_ZOOM, station.id);
-      // 移动端点击后关闭 drawer
-      toggleMobileDrawer(false);
+      // 移动端点击后关闭面板
+      closePanel();
     },
-    [setSelectedStation, flyTo, toggleMobileDrawer]
+    [setSelectedStation, flyTo, closePanel]
   );
 
   const displayStations = searchResults !== null ? searchResults : stations;

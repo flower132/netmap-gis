@@ -22,6 +22,12 @@ import {
 } from '@/services/dbService';
 import debounce from 'lodash.debounce';
 
+/**
+ * 统一面板类型
+ * 所有面板由单一状态 activePanel 控制，确保互斥显隐
+ */
+export type PanelType = 'menu' | 'mapSettings' | 'layerControl' | 'dataPanel' | null;
+
 interface AppState {
   // 数据层 - 新版 GIS 图层系统
   gisLayers: GisLayer[];
@@ -49,9 +55,8 @@ interface AppState {
   // 底图
   baseMap: BaseMapType;
 
-  // 移动端
-  isMobileDrawerOpen: boolean;
-  mobileActiveTab: 'map' | 'layers' | 'data' | 'menu';
+  // 移动端面板系统（统一状态管理）
+  activePanel: PanelType;
 
   // 多图层系统（预留扩展）
   activeLayers: MapLayerConfig[];
@@ -81,8 +86,10 @@ interface AppState {
   clearSearch: () => void;
 
   setBaseMap: (map: BaseMapType) => void;
-  toggleMobileDrawer: (open?: boolean) => void;
-  setMobileActiveTab: (tab: 'map' | 'layers' | 'data' | 'menu') => void;
+
+  // 统一面板管理
+  setActivePanel: (panel: PanelType) => void;
+  closePanel: () => void;
 
   // 预留：图层控制
   toggleLayer: (layerType: LayerType) => void;
@@ -121,8 +128,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   highlightedStationId: null,
   highlightedSiteId: null,
   baseMap: DEFAULT_BASE_MAP,
-  isMobileDrawerOpen: false,
-  mobileActiveTab: 'map',
+  activePanel: null,
   activeLayers: [
     { id: 'station-layer', type: 'station', name: '基站标记', visible: true, opacity: 1 },
     { id: 'heatmap-layer', type: 'heatmap', name: '热力图', visible: false, opacity: 0.7 },
@@ -385,18 +391,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   // 底图
   setBaseMap: (map) => set({ baseMap: map }),
 
-  // 移动端 drawer
-  toggleMobileDrawer: (open) =>
+  // 统一面板管理：点击已打开的面板则关闭，否则打开新面板
+  setActivePanel: (panel) =>
     set((state) => ({
-      isMobileDrawerOpen: open !== undefined ? open : !state.isMobileDrawerOpen,
+      activePanel: state.activePanel === panel ? null : panel,
     })),
 
-  // 移动端底部导航 active tab
-  setMobileActiveTab: (tab) =>
-    set((state) => ({
-      mobileActiveTab: tab,
-      isMobileDrawerOpen: tab === 'map' ? false : state.isMobileDrawerOpen,
-    })),
+  closePanel: () => set({ activePanel: null }),
 
   // 预留：图层控制
   toggleLayer: (layerType) =>

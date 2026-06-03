@@ -2,18 +2,18 @@ import { useEffect } from 'react';
 import { X } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { cn } from '@/utils/cn';
-
-interface MobileDrawerProps {
-  children: React.ReactNode;
-}
+import { MenuPanelContent } from './MenuPanelContent';
 
 /**
- * 移动端抽屉组件
- * 从左侧滑出的全屏/半屏面板，用于承载侧边栏内容
+ * 移动端左侧菜单 Drawer
+ * 由统一面板状态 activePanel === 'menu' 控制显隐
+ * 复用原有 MobileDrawer 的 backdrop + 滑出动画结构
  */
-export function MobileDrawer({ children }: MobileDrawerProps) {
-  const isOpen = useAppStore((state) => state.isMobileDrawerOpen);
-  const toggleMobileDrawer = useAppStore((state) => state.toggleMobileDrawer);
+export function MenuDrawer() {
+  const activePanel = useAppStore((state) => state.activePanel);
+  const closePanel = useAppStore((state) => state.closePanel);
+
+  const isOpen = activePanel === 'menu';
 
   // 阻止背景滚动
   useEffect(() => {
@@ -35,7 +35,7 @@ export function MobileDrawer({ children }: MobileDrawerProps) {
           'fixed inset-0 bg-black/60 backdrop-blur-sm z-drawer transition-opacity lg:hidden',
           isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
         )}
-        onClick={() => toggleMobileDrawer(false)}
+        onClick={closePanel}
       />
 
       {/* Drawer Panel */}
@@ -53,7 +53,7 @@ export function MobileDrawer({ children }: MobileDrawerProps) {
           <h2 className="text-sm font-semibold text-gis-100">基站管理</h2>
           <button
             className="p-2 text-gis-400 hover:text-gis-100 hover:bg-gis-700/50 rounded-md transition-colors"
-            onClick={() => toggleMobileDrawer(false)}
+            onClick={closePanel}
           >
             <X className="w-5 h-5" />
           </button>
@@ -61,7 +61,7 @@ export function MobileDrawer({ children }: MobileDrawerProps) {
 
         {/* Drawer Content */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          {children}
+          <MenuPanelContent />
         </div>
       </aside>
     </>

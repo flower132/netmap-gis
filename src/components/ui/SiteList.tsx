@@ -18,16 +18,16 @@ export function SiteList({ sites }: SiteListProps) {
   const selectedSite = useAppStore((state) => state.selectedSite);
   const highlightedSiteId = useAppStore((state) => state.highlightedSiteId);
   const setSelectedSite = useAppStore((state) => state.setSelectedSite);
-  const toggleMobileDrawer = useAppStore((state) => state.toggleMobileDrawer);
+  const closePanel = useAppStore((state) => state.closePanel);
   const flyTo = useMapStore((state) => state.flyTo);
 
   const handleSiteClick = useCallback(
     (site: Site) => {
       setSelectedSite(site);
       flyTo([site.latitude, site.longitude], SEARCH_FLY_ZOOM, site.id);
-      toggleMobileDrawer(false);
+      closePanel();
     },
-    [setSelectedSite, flyTo, toggleMobileDrawer]
+    [setSelectedSite, flyTo, closePanel]
   );
 
   return (

@@ -1,32 +1,39 @@
 import { Map, Layers, List, Menu } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
+import type { PanelType } from '@/store/useAppStore';
 import { cn } from '@/utils/cn';
 
-const NAV_ITEMS = [
-  { id: 'map' as const, label: '地图', icon: Map },
-  { id: 'layers' as const, label: '图层', icon: Layers },
-  { id: 'data' as const, label: '数据', icon: List },
-  { id: 'menu' as const, label: '菜单', icon: Menu },
+type NavId = PanelType | 'map';
+
+interface NavItem {
+  id: NavId;
+  label: string;
+  icon: typeof Map;
+}
+
+const NAV_ITEMS: NavItem[] = [
+  { id: 'menu', label: '菜单', icon: Menu },
+  { id: 'layerControl', label: '图层', icon: Layers },
+  { id: 'dataPanel', label: '数据', icon: List },
+  { id: 'map', label: '地图', icon: Map },
 ];
 
 /**
  * 移动端底部导航栏
  * 固定在屏幕底部，提供 4 个核心入口
- * 点击菜单项时自动切换 active 状态并控制 drawer 显隐
+ * 所有面板由统一状态 activePanel 控制，确保互斥显隐
  */
 export function BottomNav() {
-  const mobileActiveTab = useAppStore((state) => state.mobileActiveTab);
-  const setMobileActiveTab = useAppStore((state) => state.setMobileActiveTab);
-  const toggleMobileDrawer = useAppStore((state) => state.toggleMobileDrawer);
+  const activePanel = useAppStore((state) => state.activePanel);
+  const setActivePanel = useAppStore((state) => state.setActivePanel);
 
-  const handleTabClick = (tab: typeof NAV_ITEMS[number]['id']) => {
-    setMobileActiveTab(tab);
-
+  const handleTabClick = (tab: NavId) => {
     if (tab === 'map') {
-      toggleMobileDrawer(false);
+      // 地图按钮：关闭所有面板
+      setActivePanel(null);
     } else {
-      // 其他 tab 打开 drawer，方便用户继续操作
-      toggleMobileDrawer(true);
+      // 其他按钮：切换对应面板（已打开则关闭）
+      setActivePanel(tab);
     }
   };
 
@@ -42,7 +49,7 @@ export function BottomNav() {
     >
       <div className="flex items-center justify-around h-16">
         {NAV_ITEMS.map((item) => {
-          const isActive = mobileActiveTab === item.id;
+          const isActive = activePanel === item.id;
           return (
             <button
               key={item.id}
