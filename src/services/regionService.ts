@@ -4,6 +4,7 @@ import type { Site, Sector, RegionStats } from '@/types';
 export const SUPPORTED_REGIONS = [
   '云龙',
   '鼓楼',
+  '泉山',
   '经开',
   '铜山',
   '贾汪',
@@ -18,7 +19,8 @@ export const SUPPORTED_REGIONS = [
 const REGION_KEYWORDS: Record<string, string[]> = {
   '云龙': ['云龙'],
   '鼓楼': ['鼓楼'],
-  '经开': ['经开', '开发区', '经济开发区'],
+  '泉山': ['泉山'],
+  '经开': ['经开', '开发区', '经济开发区', '徐州经济技术开发区'],
   '铜山': ['铜山'],
   '贾汪': ['贾汪'],
   '丰县': ['丰县'],

@@ -221,3 +221,6 @@
 2026-06-03 06:42:03 | Edit | /Users/temp/Vibe_Project/GIS_APP/src/components/panels/MenuPanelContent.tsx
 2026-06-03 06:42:08 | Edit | /Users/temp/Vibe_Project/GIS_APP/src/components/panels/MenuPanelContent.tsx
 2026-06-03 06:42:16 | Edit | /Users/temp/Vibe_Project/GIS_APP/src/store/useAppStore.ts
+2026-06-03 06:50:57 | Edit | /Users/temp/Vibe_Project/GIS_APP/src/services/regionService.ts
+2026-06-03 06:51:04 | Edit | /Users/temp/Vibe_Project/GIS_APP/src/services/regionService.ts
+2026-06-03 06:51:09 | Edit | /Users/temp/Vibe_Project/GIS_APP/src/services/searchService.ts

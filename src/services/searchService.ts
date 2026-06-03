@@ -133,6 +133,7 @@ export function getRegionSuggestions(query: string): string[] {
   return [
     '云龙',
     '鼓楼',
+    '泉山',
     '经开',
     '铜山',
     '贾汪',
