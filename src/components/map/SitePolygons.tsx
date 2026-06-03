@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { memo, useMemo, useState, useEffect } from 'react';
 import { useMap, useMapEvent } from 'react-leaflet';
 import { SectorPolygon } from './SectorPolygon';
 import { useAppStore } from '@/store/useAppStore';
@@ -13,8 +13,10 @@ interface SitePolygonsProps {
  * 站点扇区 Polygon 集合
  * 仅在地图缩放级别 >= minZoom 时渲染，优化性能
  * 根据 visible 图层过滤站点（由传入的 sites 控制）
+ *
+ * 使用 React.memo + useMemo 避免地图移动/缩放时不必要的重绘
  */
-export function SitePolygons({ sites, minZoom = 16 }: SitePolygonsProps) {
+function SitePolygonsComponent({ sites, minZoom = 16 }: SitePolygonsProps) {
   const map = useMap();
   const [zoom, setZoom] = useState(map.getZoom());
   const highlightedSiteId = useAppStore((state) => state.highlightedSiteId);
@@ -76,3 +78,5 @@ export function SitePolygons({ sites, minZoom = 16 }: SitePolygonsProps) {
     </>
   );
 }
+
+export const SitePolygons = memo(SitePolygonsComponent);

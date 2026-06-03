@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Marker, Popup } from 'react-leaflet';
 import type { Sector } from '@/types';
 import { createSectorIcon, createHighlightedSectorIcon } from '@/utils/sector-icons';
@@ -56,8 +57,10 @@ function renderSectorFields(sector: Sector) {
 /**
  * 单个扇区标记组件
  * 使用 DivIcon 箭头显示方向，支持 4G/5G 颜色区分
+ *
+ * 使用 React.memo 避免父组件重渲染时不必要的重绘
  */
-export function SectorMarker({ sector, siteName, siteLat, siteLng, isHighlighted }: SectorMarkerProps) {
+function SectorMarkerComponent({ sector, siteName, siteLat, siteLng, isHighlighted }: SectorMarkerProps) {
   const position = computeSectorPosition(siteLat, siteLng, sector.azimuth);
   const azimuth = sector.azimuth ?? 0;
 
@@ -113,3 +116,5 @@ export function SectorMarker({ sector, siteName, siteLat, siteLng, isHighlighted
     </Marker>
   );
 }
+
+export const SectorMarker = memo(SectorMarkerComponent);

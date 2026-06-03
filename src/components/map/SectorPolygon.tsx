@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from 'react';
+import { memo, useMemo } from 'react';
 import { Polygon, Popup } from 'react-leaflet';
 import type { Sector } from '@/types';
 import { generateSectorPolygon, getSectorColor, getSectorBorderColor } from '@/gis/sectorGenerator';
@@ -35,8 +35,10 @@ function renderSectorFields(sector: Sector) {
  * 专业扇区 Polygon 组件
  * 使用 Leaflet Polygon 渲染真正的扇形覆盖区域
  * 所有扇区基于统一 anchor point，确保同心显示
+ *
+ * 使用 React.memo 避免父组件重渲染时不必要的重绘
  */
-export function SectorPolygon({ sector, siteName, siteLat, siteLng, isHighlighted }: SectorPolygonProps) {
+function SectorPolygonComponent({ sector, siteName, siteLat, siteLng, isHighlighted }: SectorPolygonProps) {
   const positions = useMemo(() => {
     const azimuth = sector.azimuth ?? 0;
     // generateSectorPolygon 内部已强制 Number 转换，确保坐标计算正确
@@ -46,7 +48,7 @@ export function SectorPolygon({ sector, siteName, siteLat, siteLng, isHighlighte
   const fillColor = useMemo(() => getSectorColor(sector.tech, isHighlighted ? 0.55 : 0.35), [sector.tech, isHighlighted]);
   const borderColor = useMemo(() => getSectorBorderColor(sector.tech), [sector.tech]);
 
-  const eventHandlers = useCallback(
+  const eventHandlers = useMemo(
     () => ({
       click: () => {
         // 可扩展：点击扇区选中
@@ -68,7 +70,7 @@ export function SectorPolygon({ sector, siteName, siteLat, siteLng, isHighlighte
         opacity: 0.9,
         dashArray: undefined,
       }}
-      eventHandlers={eventHandlers()}
+      eventHandlers={eventHandlers}
     >
       <Popup className="station-popup">
         <div className="min-w-[200px]">
@@ -114,3 +116,5 @@ export function SectorPolygon({ sector, siteName, siteLat, siteLng, isHighlighte
     </Polygon>
   );
 }
+
+export const SectorPolygon = memo(SectorPolygonComponent);

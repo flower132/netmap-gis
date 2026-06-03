@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { memo, useMemo, useState, useEffect } from 'react';
 import { useMap, useMapEvent } from 'react-leaflet';
 import { SectorMarker } from './SectorMarker';
 import { useAppStore } from '@/store/useAppStore';
@@ -13,8 +13,10 @@ interface SiteMarkersProps {
  * 站点扇区标记集合组件
  * 渲染所有 Site 的扇区 Marker，支持高亮状态传递
  * 仅在 zoom < maxZoom 时渲染，避免与高 zoom 的 polygon 重叠
+ *
+ * 使用 React.memo + useMemo 避免地图移动/缩放时不必要的重绘
  */
-export function SiteMarkers({ sites, maxZoom = 16 }: SiteMarkersProps) {
+function SiteMarkersComponent({ sites, maxZoom = 16 }: SiteMarkersProps) {
   const map = useMap();
   const [zoom, setZoom] = useState(map.getZoom());
   const highlightedSiteId = useAppStore((state) => state.highlightedSiteId);
@@ -76,3 +78,5 @@ export function SiteMarkers({ sites, maxZoom = 16 }: SiteMarkersProps) {
     </>
   );
 }
+
+export const SiteMarkers = memo(SiteMarkersComponent);

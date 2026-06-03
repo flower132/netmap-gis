@@ -12,6 +12,9 @@ import { getAllSitesFromLayers } from '@/layers/layerManager';
  * 响应式布局：
  * - 桌面端（>= 1024px）：左侧固定 Sidebar + 右侧地图
  * - 移动端（< 1024px）：全屏地图 + 底部 BottomNav + Drawer 菜单
+ *
+ * 性能优化：
+ * - useMemo 缓存站点统计，避免每次 render 重复计算
  */
 export function HomePage() {
   const gisLayers = useAppStore((state) => state.gisLayers);
@@ -19,12 +22,24 @@ export function HomePage() {
 
   const allSites = useMemo(() => getAllSitesFromLayers(gisLayers), [gisLayers]);
 
-  const totalActive =
-    stations.filter((s) => s.status === 'active').length +
-    allSites.filter((s) => s.status === 'active').length;
-  const totalMaintenance =
-    stations.filter((s) => s.status === 'maintenance').length +
-    allSites.filter((s) => s.status === 'maintenance').length;
+  // 单次遍历计算统计
+  const stats = useMemo(() => {
+    let totalActive = 0;
+    let totalMaintenance = 0;
+
+    for (const s of stations) {
+      if (s.status === 'active') totalActive++;
+      if (s.status === 'maintenance') totalMaintenance++;
+    }
+    for (const s of allSites) {
+      if (s.status === 'active') totalActive++;
+      if (s.status === 'maintenance') totalMaintenance++;
+    }
+
+    return { totalActive, totalMaintenance };
+  }, [stations, allSites]);
+
+  const hasData = stations.length > 0 || allSites.length > 0;
 
   return (
     <div className="h-full flex flex-col bg-gis-950">
@@ -48,18 +63,18 @@ export function HomePage() {
 
           {/* 移动端浮动数据概览（仅移动端显示） */}
           <div className="absolute top-4 left-4 right-16 z-map-overlay flex gap-2 overflow-x-auto pointer-events-none lg:hidden">
-            {(stations.length > 0 || allSites.length > 0) && (
+            {hasData && (
               <>
                 <div className="glass-panel px-3 py-1.5 flex items-center gap-2 shrink-0">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                   <span className="text-[10px] text-gis-200 font-mono">
-                    {totalActive} 运行
+                    {stats.totalActive} 运行
                   </span>
                 </div>
                 <div className="glass-panel px-3 py-1.5 flex items-center gap-2 shrink-0">
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                   <span className="text-[10px] text-gis-200 font-mono">
-                    {totalMaintenance} 维护
+                    {stats.totalMaintenance} 维护
                   </span>
                 </div>
               </>

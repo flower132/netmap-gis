@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Marker, Popup } from 'react-leaflet';
 import type { Station } from '@/types';
 import { createStationIcon, createHighlightedIcon } from '@/utils/leaflet-icons';
@@ -14,8 +15,10 @@ interface StationMarkerProps {
  * 单个基站标记组件
  * 包含自定义图标和 popup 信息
  * 支持高亮闪烁状态
+ *
+ * 使用 React.memo 避免父组件重渲染时不必要的重绘
  */
-export function StationMarker({ station, onSelect, isHighlighted }: StationMarkerProps) {
+function StationMarkerComponent({ station, onSelect, isHighlighted }: StationMarkerProps) {
   const color =
     station.status === 'active'
       ? '#10b981'
@@ -81,3 +84,5 @@ export function StationMarker({ station, onSelect, isHighlighted }: StationMarke
     </Marker>
   );
 }
+
+export const StationMarker = memo(StationMarkerComponent);

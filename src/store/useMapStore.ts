@@ -2,10 +2,20 @@ import { create } from 'zustand';
 import type { FlyToTarget, HeatmapPoint, KpiType } from '@/types';
 import { APP_CONFIG } from '@/utils/constants';
 
+interface MapBounds {
+  north: number;
+  south: number;
+  east: number;
+  west: number;
+}
+
 interface MapState {
   // 视图状态
   center: [number, number];
   zoom: number;
+
+  // 当前地图视野边界
+  bounds: MapBounds | null;
 
   // FlyTo 目标（触发地图移动）
   flyToTarget: FlyToTarget | null;
@@ -27,6 +37,7 @@ interface MapState {
   setCenter: (center: [number, number]) => void;
   setZoom: (zoom: number) => void;
   setView: (center: [number, number], zoom: number) => void;
+  setBounds: (bounds: MapBounds | null) => void;
   flyTo: (coords: [number, number], zoom?: number, highlightId?: string | null) => void;
   clearFlyTo: () => void;
   setSearchResultMarker: (coords: [number, number] | null) => void;
@@ -41,6 +52,7 @@ interface MapState {
 export const useMapStore = create<MapState>((set) => ({
   center: APP_CONFIG.map.defaultCenter,
   zoom: APP_CONFIG.map.defaultZoom,
+  bounds: null,
   flyToTarget: null,
   searchResultMarker: null,
   heatmapData: [],
@@ -51,6 +63,7 @@ export const useMapStore = create<MapState>((set) => ({
   setCenter: (center) => set({ center }),
   setZoom: (zoom) => set({ zoom }),
   setView: (center, zoom) => set({ center, zoom }),
+  setBounds: (bounds) => set({ bounds }),
 
   flyTo: (coords, zoom = 17, highlightId = null) =>
     set({
