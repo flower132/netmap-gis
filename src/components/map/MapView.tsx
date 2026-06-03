@@ -12,6 +12,7 @@ import { StationCluster } from './StationCluster';
 import { StationMarkers } from './StationMarkers';
 import { SiteMarkers } from './SiteMarkers';
 import { SitePolygons } from './SitePolygons';
+import { CanvasSiteMarkers, shouldUseCanvas } from './CanvasSiteMarkers';
 import { LocationMarker } from './LocationMarker';
 import { BaseMapSwitcher } from './BaseMapSwitcher';
 import type { Station } from '@/types';
@@ -43,6 +44,9 @@ export function MapView() {
 
   const hasLegacyData = stations.length > 0;
   const hasSiteData = viewportSites.length > 0;
+
+  // 根据扇区总数决定是否使用 Canvas 渲染（避免大量 DOM 节点）
+  const useCanvasForSites = useMemo(() => shouldUseCanvas(viewportSites), [viewportSites]);
 
   // 统计：兼容旧版 stations 和新版 sites
   // 使用单次遍历优化，避免多次 filter
@@ -93,12 +97,18 @@ export function MapView() {
           </StationCluster>
         )}
 
-        {/* 新版站点扇区聚合 + Polygon */}
+        {/* 新版站点扇区渲染（自动选择 Canvas / DOM） */}
         {hasSiteData && (
           <>
-            <StationCluster>
-              <SiteMarkers sites={viewportSites} />
-            </StationCluster>
+            {useCanvasForSites ? (
+              /* 大数据量：Canvas 渲染，无 DOM 节点开销 */
+              <CanvasSiteMarkers sites={viewportSites} />
+            ) : (
+              /* 小数据量：DOM 渲染，支持完整 Popup + 方向箭头 */
+              <StationCluster>
+                <SiteMarkers sites={viewportSites} />
+              </StationCluster>
+            )}
             <SitePolygons sites={viewportSites} />
           </>
         )}

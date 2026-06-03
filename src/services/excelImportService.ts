@@ -1,253 +1,96 @@
 import * as XLSX from 'xlsx';
-import type { Site, Sector, ImportStats } from '@/types';
-import { generateId } from '@/utils/geo';
-import {
-  detectFieldMapping,
-  parseNumber,
-  parseString,
-  parseTech,
-  extractField,
-  type FieldMappingResult,
-} from '@/gis/fieldMapper';
+import type { Site, ImportStats } from '@/types';
 
-interface ParsedRow {
-  siteName: string;
-  latitude: number;
-  longitude: number;
-  raw: Record<string, unknown>;
-}
+// ==================== Worker 导入接口 ====================
 
-// ==================== 字段识别（已迁移到 fieldMapper）====================
+/** Worker 进度回调 */
+export type ImportProgressCallback = (phase: string, current: number, total?: number) => void;
 
-// ==================== 数据解析 ====================
+// ==================== 主入口（Web Worker 版）====================
 
 /**
- * 解析单行数据
- */
-function parseRow(
-  row: Record<string, unknown>,
-  mapping: FieldMappingResult['mapping'],
-  rowIndex: number
-): { parsed: ParsedRow | null; error: string | null } {
-  const siteName = parseString(extractField(row, mapping, 'siteName'));
-  const lat = parseNumber(extractField(row, mapping, 'latitude'));
-  const lng = parseNumber(extractField(row, mapping, 'longitude'));
-
-  if (!siteName) {
-    return { parsed: null, error: `第 ${rowIndex + 1} 行: 站名不能为空` };
-  }
-  if (lat === undefined || isNaN(lat) || lat < -90 || lat > 90) {
-    return { parsed: null, error: `第 ${rowIndex + 1} 行: 纬度无效` };
-  }
-  if (lng === undefined || isNaN(lng) || lng < -180 || lng > 180) {
-    return { parsed: null, error: `第 ${rowIndex + 1} 行: 经度无效` };
-  }
-
-  return {
-    parsed: {
-      siteName,
-      latitude: lat,
-      longitude: lng,
-      raw: row,
-    },
-    error: null,
-  };
-}
-
-/**
- * 解析可选字段为 Sector
- */
-function parseSectorFromRow(row: Record<string, unknown>, mapping: FieldMappingResult['mapping']): Sector {
-  const sector: Sector = {
-    id: generateId(),
-  };
-
-  const pci = parseNumber(extractField(row, mapping, 'pci'));
-  if (pci !== undefined) sector.pci = pci;
-
-  const azimuth = parseNumber(extractField(row, mapping, 'azimuth'));
-  if (azimuth !== undefined) sector.azimuth = azimuth;
-
-  const band = parseString(extractField(row, mapping, 'band'));
-  if (band !== undefined) sector.band = band;
-
-  const arfcn = parseNumber(extractField(row, mapping, 'arfcn'));
-  if (arfcn !== undefined) sector.arfcn = arfcn;
-
-  const bandwidth = parseString(extractField(row, mapping, 'bandwidth'));
-  if (bandwidth !== undefined) sector.bandwidth = bandwidth;
-
-  const height = parseNumber(extractField(row, mapping, 'height'));
-  if (height !== undefined) sector.height = height;
-
-  const tech = parseTech(extractField(row, mapping, 'tech'));
-  if (tech !== undefined) sector.tech = tech;
-
-  const tac = parseNumber(extractField(row, mapping, 'tac'));
-  if (tac !== undefined) sector.tac = tac;
-
-  const sectorId = parseString(extractField(row, mapping, 'sectorId'));
-  if (sectorId !== undefined) {
-    sector.sectorId = sectorId;
-  } else {
-    const cellId = parseString(extractField(row, mapping, 'cellId'));
-    if (cellId !== undefined) sector.sectorId = cellId;
-  }
-
-  return sector;
-}
-
-// ==================== 站点聚合 ====================
-
-/**
- * 将行数据聚合成 Site（按站名分组）
- */
-function aggregateSites(rows: ParsedRow[], mapping: FieldMappingResult['mapping']): Site[] {
-  const siteMap = new Map<string, { siteName: string; lat: number; lng: number; rows: ParsedRow[] }>();
-
-  for (const row of rows) {
-    const existing = siteMap.get(row.siteName);
-    if (existing) {
-      existing.rows.push(row);
-    } else {
-      siteMap.set(row.siteName, {
-        siteName: row.siteName,
-        lat: row.latitude,
-        lng: row.longitude,
-        rows: [row],
-      });
-    }
-  }
-
-  const sites: Site[] = [];
-
-  for (const [, group] of siteMap) {
-    const sectors: Sector[] = group.rows.map((row, idx) => {
-      const sector = parseSectorFromRow(row.raw, mapping);
-
-      // 如果没有扇区ID，使用序号
-      if (!sector.sectorId) {
-        sector.sectorId = `S${idx + 1}`;
-      }
-
-      return sector;
-    });
-
-    sites.push({
-      id: generateId(),
-      siteName: group.siteName,
-      latitude: group.lat,
-      longitude: group.lng,
-      status: 'active',
-      sectors,
-    });
-  }
-
-  return sites;
-}
-
-// ==================== 主入口 ====================
-
-/**
- * 从 Excel/CSV 文件导入站点数据
+ * 从 Excel/CSV 文件导入站点数据（Web Worker 异步解析）
+ * 解析过程在后台线程执行，不阻塞 UI
  * 支持 .xlsx, .xls, .csv
  */
-export function importSitesFromExcel(file: File): Promise<{ sites: Site[]; stats: ImportStats }> {
+export function importSitesFromExcel(
+  file: File,
+  onProgress?: ImportProgressCallback
+): Promise<{ sites: Site[]; stats: ImportStats }> {
   return new Promise((resolve) => {
-    const reader = new FileReader();
+    const worker = new Worker(
+      new URL('@/workers/excelParse.worker.ts', import.meta.url),
+      { type: 'module' }
+    );
 
-    reader.onload = (e) => {
-      try {
-        const data = e.target?.result;
-        if (!data) {
-          resolve({ sites: [], stats: { totalRows: 0, successCount: 0, failedCount: 0, errors: ['文件读取失败'] } });
-          return;
-        }
-
-        const workbook = XLSX.read(data, { type: 'binary', codepage: 65001 });
-        const firstSheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[firstSheetName];
-
-        // 解析为 JSON，保留原始表头
-        const jsonData = XLSX.utils.sheet_to_json<unknown[]>(worksheet, { header: 1, defval: '' });
-
-        if (jsonData.length < 2) {
-          resolve({ sites: [], stats: { totalRows: 0, successCount: 0, failedCount: 0, errors: ['文件为空或格式不正确'] } });
-          return;
-        }
-
-        const headers = (jsonData[0]).map((h) => String(h).trim());
-        const { mapping, missing } = detectFieldMapping(headers);
-
-        if (missing.length > 0) {
-          resolve({
-            sites: [],
-            stats: {
-              totalRows: 0,
-              successCount: 0,
-              failedCount: 0,
-              errors: [`缺少必要字段: ${missing.join(', ')}`],
-            },
-          });
-          return;
-        }
-
-        const errors: string[] = [];
-        const parsedRows: ParsedRow[] = [];
-
-        // 从第2行开始解析数据
-        for (let i = 1; i < jsonData.length; i++) {
-          const rowArray = jsonData[i];
-          const rowObj: Record<string, unknown> = {};
-          headers.forEach((h, idx) => {
-            rowObj[h] = rowArray[idx];
-          });
-
-          const { parsed, error } = parseRow(rowObj, mapping, i);
-          if (parsed) {
-            parsedRows.push(parsed);
-          } else if (error) {
-            errors.push(error);
-          }
-        }
-
-        const sites = aggregateSites(parsedRows, mapping);
-
-        resolve({
-          sites,
-          stats: {
-            totalRows: jsonData.length - 1,
-            successCount: parsedRows.length,
-            failedCount: jsonData.length - 1 - parsedRows.length,
-            errors: errors.slice(0, 10),
-          },
-        });
-      } catch (err) {
+    worker.onmessage = (e: MessageEvent) => {
+      const msg = e.data;
+      if (msg.type === 'progress') {
+        onProgress?.(msg.phase, msg.current, msg.total);
+      } else if (msg.type === 'result') {
+        worker.terminate();
+        resolve({ sites: msg.sites, stats: msg.stats });
+      } else if (msg.type === 'error') {
+        worker.terminate();
         resolve({
           sites: [],
           stats: {
             totalRows: 0,
             successCount: 0,
             failedCount: 0,
-            errors: [`解析失败: ${err instanceof Error ? err.message : String(err)}`],
+            errors: [msg.message],
           },
         });
       }
     };
 
-    reader.onerror = () => {
+    worker.onerror = (e) => {
+      worker.terminate();
       resolve({
         sites: [],
         stats: {
           totalRows: 0,
           successCount: 0,
           failedCount: 0,
-          errors: ['文件读取错误'],
+          errors: [`\u89E3\u6790\u5F02\u5E38: ${e.message}`],
         },
       });
     };
 
-    reader.readAsBinaryString(file);
+    // 将文件读取为 ArrayBuffer 后传给 Worker
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (reader.result instanceof ArrayBuffer) {
+        worker.postMessage(
+          { type: 'parse', buffer: reader.result, fileName: file.name },
+          { transfer: [reader.result] } // Transferable，零拷贝传输
+        );
+      } else {
+        worker.terminate();
+        resolve({
+          sites: [],
+          stats: {
+            totalRows: 0,
+            successCount: 0,
+            failedCount: 0,
+            errors: ['\u6587\u4EF6\u8BFB\u53D6\u5931\u8D25'],
+          },
+        });
+      }
+    };
+    reader.onerror = () => {
+      worker.terminate();
+      resolve({
+        sites: [],
+        stats: {
+          totalRows: 0,
+          successCount: 0,
+          failedCount: 0,
+          errors: ['\u6587\u4EF6\u8BFB\u53D6\u9519\u8BEF'],
+        },
+      });
+    };
+    reader.readAsArrayBuffer(file);
   });
 }
 
